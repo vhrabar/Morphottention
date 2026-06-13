@@ -1,5 +1,17 @@
 [project]
-name = "morphottention"
-version = "0.1.0"
-requires-python = ">=3.14"
+name = "morphottention-workspace"
+version = "0"
 dependencies = []
+
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-benchmark",
+    "ruff",
+    "mypy",
+    "ninja"
+]
