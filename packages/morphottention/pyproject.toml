@@ -3,8 +3,14 @@ name = "morphottention-kernels"
 version = "0.1.0"
 requires-python = ">=3.14"
 
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+]
+
 dependencies = [
     "torch",
+    "scikit_build_core"
 ]
 
 [[tool.uv.index]]
@@ -16,9 +22,20 @@ explicit = true
 torch = { index = "pytorch" }
 torchvision = { index = "pytorch" }
 
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [build-system]
-requires = ["setuptools>=64", "wheel", "torch"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
+
+
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.24"
+build-dir = "build/{wheel_tag}"
+
+wheel.packages = []
+editable.rebuild = true
+
+[tool.uv]
+no-build-isolation-package = ["morphottention-kernels"]

@@ -17,7 +17,10 @@ dev = [
 ]
 
 [tool.uv]
-no-build-isolation-package = ["morphottention"]
+no-build-isolation-package = ["morphottention-kernels"]
+
+[tool.uv.extra-build-dependencies]
+morphottention-kernels = ["scikit-build-core", "cmake", "ninja"]
 
 
 [tool.ruff]
