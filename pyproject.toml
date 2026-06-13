@@ -15,3 +15,6 @@ dev = [
     "mypy",
     "ninja"
 ]
+
+[tool.uv]
+no-build-isolation-package = ["morphottention"]

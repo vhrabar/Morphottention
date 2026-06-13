@@ -3,6 +3,19 @@ name = "morphottention-kernels"
 version = "0.1.0"
 requires-python = ">=3.14"
 
+dependencies = [
+    "torch",
+]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
