@@ -28,6 +28,8 @@ set(TORCH_CUDA_ARCH_LIST "9.0;10.0;12.0")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(Python_FIND_VIRTUALENV FIRST)
+
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
 execute_process(
@@ -51,7 +53,8 @@ get_filename_component(TORCH_LIB_DIR "${TORCH_PYTHON_LIBRARY}" DIRECTORY)
 find_package(CUDAToolkit REQUIRED)
 
 Python_add_library(morphottention MODULE WITH_SOABI
-        csrc/binder.cpp
+        csrc/cuda/binder.cpp
+        csrc/cuda/dispatch.cpp
 )
 
 # -lineinfo on Debug; full device debug (-G) only when explicitly sanitizing.
