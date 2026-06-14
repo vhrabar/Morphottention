@@ -30,17 +30,18 @@ ENV UV_PYTHON_INSTALL_DIR=/python \
 WORKDIR /app
 
 # deps
-COPY pyproject.tomlk ./
-COPY packages/${KERNEL_PKG}/pyproject.toml packages/${KERNEL_PKG}/setup.py packages/${KERNEL_PKG}/
+COPY pyproject.toml ./
+COPY packages/${KERNEL_PKG}/pyproject.toml  packages/${KERNEL_PKG}/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --package "${KERNEL_PKG}" --no-dev --no-install-project --no-editable
+    uv sync --package "${KERNEL_PKG}" --no-dev --group build --no-install-project --no-editable
 
 # src + build
+COPY packages/${KERNEL_PKG}/CMakeLists.txt packages/${KERNEL_PKG}/
 COPY packages/${KERNEL_PKG}/csrc/ packages/${KERNEL_PKG}/csrc/
 COPY packages/${KERNEL_PKG}/src/  packages/${KERNEL_PKG}/src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --package "${KERNEL_PKG}" --no-dev --no-editable
+    uv sync --package "${KERNEL_PKG}" --no-dev --group build --no-editable
 
 ###############################################################################
 # Runtime
@@ -55,7 +56,8 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1
 
-RUN useradd --create-home --uid 1000 app
+RUN userdel --remove ubuntu 2>/dev/null || true; \
+    useradd --create-home --uid 1000 app
 USER app
 WORKDIR /home/app
 

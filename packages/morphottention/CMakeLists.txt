@@ -55,6 +55,9 @@ find_package(CUDAToolkit REQUIRED)
 Python_add_library(morphottention MODULE WITH_SOABI
         csrc/cuda/binder.cpp
         csrc/cuda/dispatch.cpp
+
+        csrc/cuda/attention/attention.cpp
+        csrc/cuda/attention/attention.cu
 )
 
 # -lineinfo on Debug; full device debug (-G) only when explicitly sanitizing.
