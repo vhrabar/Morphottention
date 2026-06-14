@@ -1,16 +1,22 @@
 [project]
 name = "morphottention-kernels"
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = "==3.14"
 
 classifiers = [
-    "Operating System :: POSIX :: Linux",
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Science/Research",
+
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+
     "Programming Language :: Python :: 3",
+    "Environment :: GPU :: NVIDIA CUDA :: 13"
 ]
 
 dependencies = [
-    "torch",
-    "scikit_build_core"
+    "torch==2.12.0+cu132",
+    "scikit_build_core==0.12.2",
 ]
 
 [[tool.uv.index]]
@@ -24,7 +30,7 @@ torchvision = { index = "pytorch" }
 
 
 [build-system]
-requires = ["scikit-build-core>=0.10"]
+requires = ["scikit-build-core==0.10"]
 build-backend = "scikit_build_core.build"
 
 
@@ -38,4 +44,4 @@ wheel.packages = []
 editable.rebuild = true
 
 [tool.uv]
-no-build-isolation-package = ["morphottention-kernels"]
+no-build-isolation-package = ["morphottention-kernels"]*
