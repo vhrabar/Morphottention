@@ -106,4 +106,19 @@ _DATASETS: dict[str, _DatasetSpec] = {
     ),
 }
 
+
+def _build_registry() -> dict[str, Runtime]:
+    out: dict[str, Runtime] = {}
+    for ds_name, spec in _DATASETS.items():
+        out[ds_name] = Runtime(
+            name=ds_name,
+            model_kind="vit",
+            data=spec.data,
+            model=spec.model,
+            optim=spec.optim,
+            train=spec.train,
+        )
+    return out
+
 DATASETS = tuple(_DATASETS.keys())
+RUNTIMES = _build_registry()
