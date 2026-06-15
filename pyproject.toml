@@ -1,11 +1,18 @@
 [project]
 name = "morphottention-workspace"
 version = "0"
-dependencies = []
+dependencies = [
+    "morphottention-kernels",
+    "morphottention-bench",
+]
 
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = ["packages/*", "attn-bench"]
+
+[tool.uv.sources]
+morphottention-kernels = { workspace = true }
+morphottention-bench   = { workspace = true }
 
 [dependency-groups]
 dev = [
