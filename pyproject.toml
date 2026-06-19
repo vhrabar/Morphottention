@@ -13,6 +13,8 @@ dev = [
     "pytest-benchmark",
     "ruff",
     "mypy",
+    "scikit-build-core==0.12.2",
+    "cmake",
     "ninja"
 ]
 

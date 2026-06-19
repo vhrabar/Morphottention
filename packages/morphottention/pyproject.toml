@@ -45,6 +45,3 @@ build-dir = "build/{wheel_tag}"
 
 wheel.packages = []
 editable.rebuild = true
-
-[tool.uv]
-no-build-isolation-package = ["morphottention"]
