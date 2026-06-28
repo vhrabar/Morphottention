@@ -1,9 +1,9 @@
 #include "dispatch.h"
 
-std::vector<torch::Tensor> forward(const torch::Tensor& X) {
-    TORCH_CHECK(X.is_cuda(), "Input tensor must be a CUDA tensor");
-
-    return morpho_forward(X);
+std::vector<torch::Tensor> forward(const torch::Tensor& X, const torch::Tensor& W_phi, const torch::Tensor& gate_q,
+                                   const torch::Tensor& gate_k, const torch::Tensor& W_V, const int64_t H,
+                                   const int64_t cube_m, const double scale, const bool causal) {
+    return morpho_forward(X, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal);
 }
 
 std::vector<torch::Tensor> backward(const torch::Tensor& grad_out, const torch::Tensor& X) {

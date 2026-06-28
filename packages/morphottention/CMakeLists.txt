@@ -52,7 +52,7 @@ get_filename_component(TORCH_LIB_DIR "${TORCH_PYTHON_LIBRARY}" DIRECTORY)
 
 find_package(CUDAToolkit REQUIRED)
 
-Python_add_library(morphottention MODULE WITH_SOABI
+Python_add_library(_C MODULE WITH_SOABI
         csrc/cuda/binder.cpp
         csrc/cuda/dispatch.cpp
 
@@ -62,35 +62,35 @@ Python_add_library(morphottention MODULE WITH_SOABI
 
 # -lineinfo on Debug; full device debug (-G) only when explicitly sanitizing.
 option(CUDA_SANITIZE "Build device code with -G for compute-sanitizer" OFF)
-target_compile_options(morphottention PRIVATE
+target_compile_options(_C PRIVATE
         $<$<AND:$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>,$<CONFIG:Debug>>:-lineinfo>
         $<$<AND:$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>,$<CONFIG:Debug>,$<BOOL:${CUDA_SANITIZE}>>:-G>
 )
 
-target_include_directories(morphottention PRIVATE
+target_include_directories(_C PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/csrc
         ${TORCH_INCLUDE_DIRS}
         ${Python_INCLUDE_DIRS}
         ${CUDAToolkit_INCLUDE_DIRS}
 )
 
-target_compile_definitions(morphottention PRIVATE
-        TORCH_EXTENSION_NAME=morphottention
+target_compile_definitions(_C PRIVATE
+        TORCH_EXTENSION_NAME=_C
 )
 
-target_link_libraries(morphottention PRIVATE
+target_link_libraries(_C PRIVATE
         ${TORCH_LIBRARIES}
         ${TORCH_PYTHON_LIBRARY}
         Python::Module
         CUDA::cudart
         CUDA::cublas
 )
-target_link_options(morphottention PRIVATE "-Wl,--no-as-needed")
+target_link_options(_C PRIVATE "-Wl,--no-as-needed")
 
 
-set_target_properties(morphottention PROPERTIES
+set_target_properties(_C PROPERTIES
         BUILD_RPATH   "${TORCH_LIB_DIR}"
-        INSTALL_RPATH "$ORIGIN/torch/lib"
+        INSTALL_RPATH "$ORIGIN/../torch/lib"
 )
 
-install(TARGETS morphottention LIBRARY DESTINATION .)
+install(TARGETS _C LIBRARY DESTINATION morphottention)

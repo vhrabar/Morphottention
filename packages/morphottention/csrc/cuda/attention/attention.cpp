@@ -1,5 +1,7 @@
 #include "attention.cuh"
 
+#include <cuda/dispatch.h>
+
 #include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAGuard.h>
 #include <torch/extension.h>
@@ -10,9 +12,10 @@ auto check = [](const torch::Tensor& t, const char* name) {
     TORCH_CHECK(t.is_contiguous(), name, " must be contiguous");
 };
 
-std::vector<torch::Tensor> forward(const torch::Tensor& X, const torch::Tensor& W_phi, const torch::Tensor& gate_q,
-                                   const torch::Tensor& gate_k, const torch::Tensor& W_V, const int64_t H,
-                                   const int64_t cube_m, const double scale, const bool causal) {
+std::vector<torch::Tensor> morpho_forward(const torch::Tensor& X, const torch::Tensor& W_phi,
+                                          const torch::Tensor& gate_q, const torch::Tensor& gate_k,
+                                          const torch::Tensor& W_V, const int64_t H, const int64_t cube_m,
+                                          const double scale, const bool causal) {
     // checkers
     check(X, "X");
     check(W_phi, "W_phi");

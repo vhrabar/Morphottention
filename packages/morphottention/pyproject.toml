@@ -43,5 +43,5 @@ minimum-version = "build-system.requires"
 cmake.version = ">=3.24"
 build-dir = "build/{wheel_tag}"
 
-wheel.packages = []
+wheel.packages = ["src/morphottention"]
 editable.rebuild = true
