@@ -49,7 +49,7 @@ jobs:
      # Clang-format
       - name: Check C++/CUDA formatting
         run: |
-          FILES=$(git ls-files 'csrc/' | grep -E '\.(cpp|cc|cxx|h|hpp|cu|cuh)$' || true)
+          FILES=$(git ls-files | grep -E '\.(cpp|cc|cxx|h|hpp|cu|cuh)$' || true)
           if [ -n "$FILES" ]; then
             uvx clang-format@18.1.8 --dry-run --Werror $FILES
           else
