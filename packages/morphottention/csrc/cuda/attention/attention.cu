@@ -61,10 +61,11 @@ __global__ void morpho_attention_forward_kernel(const __half* __restrict__ X, co
     }
 
     // move X to SRAM + prefatch K/V tile
-    smem_load(x_q_mem, X_b + q_row_start * D, static_cast<unsigned int>(q_rows), static_cast<unsigned int>(D), tid, BR);
+    arch::impl::smem_load(x_q_mem, X_b + q_row_start * D, static_cast<unsigned int>(q_rows),
+                          static_cast<unsigned int>(D), tid, BR);
 
     const unsigned int kv0 = static_cast<unsigned int>(min(BC, N));
-    smem_load_async(x_k_mem, X_b, kv0, static_cast<unsigned int>(D), tid, BC);
+    arch::impl::smem_load_async(x_k_mem, X_b, kv0, static_cast<unsigned int>(D), tid, BC);
     __pipeline_commit();
     __syncthreads();
 

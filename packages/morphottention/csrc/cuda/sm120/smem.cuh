@@ -3,7 +3,6 @@
 
 #include <cuda_runtime.h>
 
-#include <ATen/ops/min_ops.h>
 #include <cuda_pipeline.h>
 #include <device_launch_parameters.h>
 #include <mma.h>
@@ -26,7 +25,8 @@ __device__ __forceinline__ void smem_load_async(__half* __restrict__ smem, const
     const unsigned int total = padded_rows * cols;
     const unsigned int valid = rows * cols;
     for (unsigned int base = tid * CHUNK; base < total; base += blockDim.x * CHUNK) {
-        const unsigned int valid_h = (base < valid) ? min(CHUNK, valid - base) : 0u;
+        const unsigned int remaining = valid - base;
+        const unsigned int valid_h = (base < valid) ? (remaining < CHUNK ? remaining : CHUNK) : 0u;
         __pipeline_memcpy_async(smem + base, gmem + base, CHUNK * sizeof(__half), (CHUNK - valid_h) * sizeof(__half));
     }
 }

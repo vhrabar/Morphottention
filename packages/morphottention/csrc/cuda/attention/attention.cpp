@@ -1,10 +1,10 @@
-#include "attention.cuh"
-
 #include <cuda/dispatch.h>
 
 #include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAGuard.h>
 #include <torch/extension.h>
+
+#include "attention.cuh"
 
 auto check = [](const torch::Tensor& t, const char* name) {
     TORCH_CHECK(t.is_cuda(), name, " must be a CUDA tensor");
