@@ -26,5 +26,4 @@ __device__ __forceinline__ ThreadCoords get_coords() {
     return {blockIdx.x, blockIdx.y, threadIdx.x};
 }
 
-
 #endif // MORPHOTTENTION_UTILS_CUH
