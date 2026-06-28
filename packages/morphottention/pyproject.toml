@@ -4,14 +4,34 @@ version = "0.1.0"
 requires-python = "==3.14.*"
 
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 2 - Pre-Alpha",
+
+    "Environment :: GPU",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Environment :: GPU :: NVIDIA CUDA :: 13",
+
+    "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
 
+    "License :: OSI Approved :: MIT License",
+
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+
+    "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules",
 
-    "Programming Language :: Python :: 3",
-    "Environment :: GPU :: NVIDIA CUDA :: 13"
+    "Typing :: Typed",
 ]
 
 dependencies = [
