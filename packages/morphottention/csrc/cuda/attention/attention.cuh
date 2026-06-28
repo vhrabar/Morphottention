@@ -3,6 +3,7 @@
 
 #include <cuda/utils/declarations.cuh>
 #include <cuda/utils/smem.cuh>
+#include <cuda/utils/utils.cuh>
 
 #include <cuda_runtime.h>
 
