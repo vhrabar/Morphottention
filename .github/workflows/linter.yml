@@ -23,7 +23,7 @@ jobs:
 
       # install dev tools
       - name: Install dev dependencies
-        run: uv sync --no-install-project
+        run: uv sync --no-install-project --no-install-workspace
 
      # run formatters and linters
       - name: Ruff format
