@@ -14,12 +14,8 @@ void configure_kernel_smem(KernelFn kernel, const size_t requested, int& cached,
         C10_CUDA_CHECK(cudaGetDevice(&dev));
         C10_CUDA_CHECK(cudaDeviceGetAttribute(&device_limit, cudaDevAttrMaxSharedMemoryPerBlockOptin, dev));
     }
-    TORCH_CHECK(static_cast<int>(requested) <= device_limit,
-                name,
-                " requires ",
-                requested,
-                " bytes of dynamic smem, exceeds device opt-in limit ",
-                device_limit);
+    TORCH_CHECK(static_cast<int>(requested) <= device_limit, name, " requires ", requested,
+                " bytes of dynamic smem, exceeds device opt-in limit ", device_limit);
     if (static_cast<int>(requested) != cached) {
         C10_CUDA_CHECK(
             cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, static_cast<int>(requested)));

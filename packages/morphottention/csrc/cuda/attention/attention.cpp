@@ -10,15 +10,9 @@ auto check = [](const torch::Tensor& t, const char* name) {
     TORCH_CHECK(t.is_contiguous(), name, " must be contiguous");
 };
 
-std::vector<torch::Tensor> forward(const torch::Tensor& X,
-                                   const torch::Tensor& W_phi,
-                                   const torch::Tensor& gate_q,
-                                   const torch::Tensor& gate_k,
-                                   const torch::Tensor& W_V,
-                                   const int64_t H,
-                                   const int64_t cube_m,
-                                   const double scale,
-                                   const bool causal) {
+std::vector<torch::Tensor> forward(const torch::Tensor& X, const torch::Tensor& W_phi, const torch::Tensor& gate_q,
+                                   const torch::Tensor& gate_k, const torch::Tensor& W_V, const int64_t H,
+                                   const int64_t cube_m, const double scale, const bool causal) {
     // checkers
     check(X, "X");
     check(W_phi, "W_phi");
@@ -45,15 +39,14 @@ std::vector<torch::Tensor> forward(const torch::Tensor& X,
     // launcher
     const c10::cuda::CUDAStreamGuard guard(c10::cuda::getCurrentCUDAStream());
 
-    attention_forward_kernel_launcher(reinterpret_cast<const __half*>(X.data_ptr<at::Half>()),
-                                      reinterpret_cast<const __half*>(W_phi.data_ptr<at::Half>()),
-                                      reinterpret_cast<const __half*>(gate_q.data_ptr<at::Half>()),
-                                      reinterpret_cast<const __half*>(gate_k.data_ptr<at::Half>()),
-                                      reinterpret_cast<const __half*>(W_V.data_ptr<at::Half>()),
-                                      reinterpret_cast<__half*>(out.data_ptr<at::Half>()),
-                                      static_cast<int>(B), static_cast<int>(N), static_cast<int>(D),static_cast<int>(H),
-                                      static_cast<int>(cube_m), static_cast<int>(head_dim_v),
-                                      c10::cuda::getCurrentCUDAStream());
+    attention_forward_kernel_launcher(
+        reinterpret_cast<const __half*>(X.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(W_phi.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(gate_q.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(gate_k.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(W_V.data_ptr<at::Half>()), reinterpret_cast<__half*>(out.data_ptr<at::Half>()),
+        static_cast<int>(B), static_cast<int>(N), static_cast<int>(D), static_cast<int>(H), static_cast<int>(cube_m),
+        static_cast<int>(head_dim_v), c10::cuda::getCurrentCUDAStream());
 
     return {out};
 }

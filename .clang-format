@@ -31,8 +31,8 @@ AlignOperands:         Align
 
 # templates / arg packing (kernel-friendly)
 AlwaysBreakTemplateDeclarations: Yes
-BinPackArguments:                false
-BinPackParameters:               false
+BinPackArguments:                true
+BinPackParameters:               true
 
 # CUDA qualifier macros: keep clang-format from misparsing kernel code
 AttributeMacros:

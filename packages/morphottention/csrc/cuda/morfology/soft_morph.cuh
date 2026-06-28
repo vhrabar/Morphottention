@@ -30,8 +30,8 @@ __device__ __forceinline__ void lse_update(SoftLSE& acc, const float a) {
 }
 
 // fold raw (S, V) pair.
-__device__ __forceinline__ void
-morph_accumulate(SoftLSE& acc, const float s, const float v, const float sgn, const float inv_tau) {
+__device__ __forceinline__ void morph_accumulate(SoftLSE& acc, const float s, const float v, const float sgn,
+                                                 const float inv_tau) {
     lse_update(acc, sgn * trop_add(s, v) * inv_tau);
 }
 
@@ -65,8 +65,8 @@ __device__ __forceinline__ float lse_finalize(const SoftLSE acc, const float sgn
 }
 
 //   P_ijc = exp( sgn * ((S_ij + V_jc) - out_ic) * inv_tau )
-__device__ __forceinline__ float
-morph_weight(const float s, const float v, const float out_ic, const float sgn, const float inv_tau) {
+__device__ __forceinline__ float morph_weight(const float s, const float v, const float out_ic, const float sgn,
+                                              const float inv_tau) {
     return __expf(sgn * (trop_add(s, v) - out_ic) * inv_tau);
 }
 
