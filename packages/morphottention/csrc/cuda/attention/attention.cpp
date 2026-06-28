@@ -38,6 +38,7 @@ std::vector<torch::Tensor> morpho_forward(const torch::Tensor& X, const torch::T
     TORCH_CHECK(gate_k.dim() == 2 && gate_k.size(0) == H && gate_k.size(1) == cube_m, "gate_k must be [H, cube_m]");
 
     auto out = torch::empty_like(X);
+    auto lse = torch::empty({B * H, N}, X.options().dtype(torch::kFloat32));
 
     // launcher
     const c10::cuda::CUDAStreamGuard guard(c10::cuda::getCurrentCUDAStream());
@@ -48,8 +49,8 @@ std::vector<torch::Tensor> morpho_forward(const torch::Tensor& X, const torch::T
         reinterpret_cast<const __half*>(gate_q.data_ptr<at::Half>()),
         reinterpret_cast<const __half*>(gate_k.data_ptr<at::Half>()),
         reinterpret_cast<const __half*>(W_V.data_ptr<at::Half>()), reinterpret_cast<__half*>(out.data_ptr<at::Half>()),
-        static_cast<int>(B), static_cast<int>(N), static_cast<int>(D), static_cast<int>(H), static_cast<int>(cube_m),
-        static_cast<int>(head_dim_v), c10::cuda::getCurrentCUDAStream());
+        lse.data_ptr<float>(), static_cast<int>(B), static_cast<int>(N), static_cast<int>(D), static_cast<int>(H),
+        static_cast<int>(cube_m), static_cast<int>(head_dim_v), c10::cuda::getCurrentCUDAStream());
 
     return {out};
 }
