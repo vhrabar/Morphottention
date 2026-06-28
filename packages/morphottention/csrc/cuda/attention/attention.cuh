@@ -6,6 +6,7 @@
 #include <cuda_fp16.h>
 
 #ifdef __CUDACC__
+#include <cuda/sm120/project.cuh>
 #include <cuda/sm120/smem.cuh>
 #include <cuda/utils/declarations.cuh>
 #include <cuda/utils/smem.cuh>
@@ -16,11 +17,11 @@
 
 namespace arch {
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 120)
-    namespace impl = sm120; // Consumer Blackwell
+namespace impl = sm120; // Consumer Blackwell
 #else
-    namespace impl = sm120; // fallback
+namespace impl = sm120; // fallback
 #endif
-}
+} // namespace arch
 
 template <int HEAD_DIM_V, int CUBE_M, int BR, int BC>
 __global__ void morpho_attention_forward_kernel(const __half* __restrict__ X, const __half* __restrict__ W_phi,
