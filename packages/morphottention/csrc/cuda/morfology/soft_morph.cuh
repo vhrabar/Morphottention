@@ -1,11 +1,15 @@
-#pragma once
+#ifndef MORPHOTTENTION_SOFTMORPH_CUH
+#define MORPHOTTENTION_SOFTMORPH_CUH
 
 #include "cube.cuh"
+
 #include <cuda_fp16.h>
 
 namespace morph {
 
-__device__ __forceinline__ float trop_add(const float s, const float v) { return s + v; }
+__device__ __forceinline__ float trop_add(const float s, const float v) {
+    return s + v;
+}
 
 struct SoftLSE {
     float m;
@@ -13,7 +17,10 @@ struct SoftLSE {
 };
 
 __device__ __forceinline__ SoftLSE lse_init() {
-    SoftLSE acc; acc.m = -INFINITY; acc.l = 0.0f; return acc;
+    SoftLSE acc;
+    acc.m = -INFINITY;
+    acc.l = 0.0f;
+    return acc;
 }
 
 __device__ __forceinline__ void lse_update(SoftLSE& acc, const float a) {
@@ -23,14 +30,17 @@ __device__ __forceinline__ void lse_update(SoftLSE& acc, const float a) {
 }
 
 // fold raw (S, V) pair.
-__device__ __forceinline__ void morph_accumulate(SoftLSE& acc, const float s, const float v, const float sgn, const float inv_tau) {
+__device__ __forceinline__ void
+morph_accumulate(SoftLSE& acc, const float s, const float v, const float sgn, const float inv_tau) {
     lse_update(acc, sgn * trop_add(s, v) * inv_tau);
 }
 
 // Merge two SoftLSE accumulators.
 __device__ __forceinline__ SoftLSE lse_merge(const SoftLSE x, const SoftLSE y) {
-    if (x.m == -INFINITY) return y;
-    if (y.m == -INFINITY) return x;
+    if (x.m == -INFINITY)
+        return y;
+    if (y.m == -INFINITY)
+        return x;
     const float m_new = fmaxf(x.m, y.m);
     SoftLSE r;
     r.m = m_new;
@@ -39,7 +49,7 @@ __device__ __forceinline__ SoftLSE lse_merge(const SoftLSE x, const SoftLSE y) {
 }
 
 __device__ __forceinline__ SoftLSE lse_warp_reduce(SoftLSE acc) {
-    #pragma unroll
+#pragma unroll
     for (int off = 16; off > 0; off >>= 1) {
         SoftLSE other;
         other.m = __shfl_down_sync(0xffffffffu, acc.m, off);
@@ -54,9 +64,9 @@ __device__ __forceinline__ float lse_finalize(const SoftLSE acc, const float sgn
     return sgn * tau * (acc.m + __logf(acc.l));
 }
 
-
 //   P_ijc = exp( sgn * ((S_ij + V_jc) - out_ic) * inv_tau )
-__device__ __forceinline__ float morph_weight(const float s, const float v, const float out_ic, const float sgn, const float inv_tau) {
+__device__ __forceinline__ float
+morph_weight(const float s, const float v, const float out_ic, const float sgn, const float inv_tau) {
     return __expf(sgn * (trop_add(s, v) - out_ic) * inv_tau);
 }
 
@@ -67,3 +77,5 @@ __device__ __forceinline__ float morph_dtau_term(const float P, const float s, c
 }
 
 } // namespace morph
+
+#endif // MORPHOTTENTION_SOFTMORPH_CUH
