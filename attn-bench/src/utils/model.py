@@ -1,7 +1,7 @@
 import argparse
 from dataclasses import replace
 
-from configs import Runtime, RUNTIMES
+from configs import RUNTIMES, Runtime
 from networks import ViT
 
 
@@ -9,6 +9,7 @@ def build_model(runtime: Runtime) -> ViT:
     match runtime.model_kind:
         case "vit":
             return ViT(runtime.model)
+
 
 def apply_overrides(runtime: Runtime, args: argparse.Namespace) -> Runtime:
     if args.epochs is not None:

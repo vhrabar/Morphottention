@@ -34,7 +34,7 @@ jobs:
 
       # MyPy static type checker
       - name: Mypy
-        run: uv run mypy src
+        run: uv run mypy .
 
   clang-format:
     runs-on: ubuntu-latest

@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Literal
 
-from src.configs.params import  DataConfig, ModelConfig, OptimConfig, TrainConfig
+from src.configs.params import DataConfig, ModelConfig, OptimConfig, TrainConfig
 
 ModelKind = Literal["vit"]
 
@@ -119,6 +119,7 @@ def _build_registry() -> dict[str, Runtime]:
             train=spec.train,
         )
     return out
+
 
 DATASETS = tuple(_DATASETS.keys())
 RUNTIMES = _build_registry()

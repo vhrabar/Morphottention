@@ -5,8 +5,8 @@ Autograd wrapper around the compiled Morphottention CUDA kernels.
 from __future__ import annotations
 
 import torch
-from . import _C
 
+from . import _C
 
 
 class MorphoAttentionFunction(torch.autograd.Function):
@@ -15,7 +15,7 @@ class MorphoAttentionFunction(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, x: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def forward(ctx: torch.autograd.function.FunctionCtx, x: torch.Tensor) -> torch.Tensor:
         if not x.is_cuda:
             raise ValueError("MorphoAttention expects a CUDA tensor")
 
@@ -27,8 +27,8 @@ class MorphoAttentionFunction(torch.autograd.Function):
         return out
 
     @staticmethod
-    def backward(ctx, grad_out: torch.Tensor):  # type: ignore[override]
-        x = ctx.saved_tensors[0]
+    def backward(ctx: torch.autograd.function.FunctionCtx, grad_out: torch.Tensor) -> torch.Tensor:
+        x = ctx.saved_tensors[0]  # type: ignore[attr-defined]
         grad_out = grad_out.contiguous()
         grads = _C.backward(grad_out, x)
         return grads[0]
@@ -40,4 +40,4 @@ def attention(x: torch.Tensor) -> torch.Tensor:
     :param: x: input activations of shape (B, N, D) on a CUDA device.
     :returns: The attention output, differentiable w.r.t. x.
     """
-    return MorphoAttentionFunction.apply(x)
+    return MorphoAttentionFunction.apply(x)  # type: ignore[no-any-return, no-untyped-call]

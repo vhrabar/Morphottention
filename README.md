@@ -8,3 +8,5 @@
 ## License
 
 Released under the MIT License. See `LICENSE`.
+
+Copyright © 2026 Vedran Hrabar

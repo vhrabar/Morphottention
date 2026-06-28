@@ -1,7 +1,6 @@
 from typing import cast
 
 import torch
-from numpy import sqrt
 from torch import nn
 
 
@@ -23,7 +22,6 @@ class MultiHeadSelfAttention(nn.Module):
 
     def _project(self) -> tuple[torch.Tensor]:
         raise NotImplementedError("CUDA extension not implemented yet")
-
 
     def _attention(self) -> torch.Tensor:
         raise NotImplementedError("CUDA extension not implemented yet")
