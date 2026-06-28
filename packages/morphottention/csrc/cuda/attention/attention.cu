@@ -69,6 +69,11 @@ __global__ void morpho_attention_forward_kernel(const __half* __restrict__ X, co
     __pipeline_commit();
     __syncthreads();
 
+    // project Q to the unit-hypercube
+    // q = gate_q @ sigma(W_phi.t, x_q) -> q_mem
+    arch::impl::project_phi<BR, CUBE_M, WARPS>(x_q_mem, W_phi_h, gate_q_h, gate_k_h, q_mem, corr_mem, s_mem, D,
+                                               H * CUBE_M, warp, lane);
+
     // store to GMEM
     for (unsigned int row = 0; row < BR / WARPS; row++) {
         const unsigned int row_cor = row + warp * (BR / WARPS);
