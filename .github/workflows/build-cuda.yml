@@ -10,7 +10,7 @@ on:
       - '**/*.cuh'
       - '**/*.cpp'
       - '**/*.h'
-      - 'setup.py'
+      - '**/CMakeLists.txt'
       - 'pyproject.toml'
       - 'uv.lock'
   pull_request:
@@ -21,7 +21,7 @@ on:
       - '**/*.cuh'
       - '**/*.cpp'
       - '**/*.h'
-      - 'setup.py'
+      - '**/CMakeLists.txt'
       - 'pyproject.toml'
       - 'uv.lock'
 
@@ -29,8 +29,8 @@ jobs:
   cuda-build:
     runs-on: ubuntu-26.04
     env:
-      CUDA_HOME: /usr/local/cuda-13.3
-      CUDAToolkit_ROOT: /usr/local/cuda-13.3
+      CUDA_HOME: /usr/local/cuda-13.2
+      CUDAToolkit_ROOT: /usr/local/cuda-13.2
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,8 +48,8 @@ jobs:
         id: cache-cuda
         uses: actions/cache@v4
         with:
-          path: /usr/local/cuda-13.3
-          key: cuda-13.3-${{ runner.os }}-v1
+          path: /usr/local/cuda-13.2
+          key: cuda-13.2-${{ runner.os }}-v1
 
       # Install CUDA compiler
       - name: Install CUDA compiler
@@ -58,10 +58,10 @@ jobs:
           wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update -q
-          sudo apt-get install -y cuda-compiler-13-3 cuda-libraries-dev-13-3
+          sudo apt-get install -y cuda-compiler-13-2 cuda-libraries-dev-13-2
 
       - name: Add CUDA to PATH
-        run: echo "/usr/local/cuda-13.3/bin" >> "$GITHUB_PATH"
+        run: echo "/usr/local/cuda-13.2/bin" >> "$GITHUB_PATH"
 
       - name: Verify nvcc
         run: nvcc --version
@@ -75,12 +75,11 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       # Installs project dependencies
-      - name: Install dependencies (no project build)
-        run: uv sync --no-dev --no-install-workspace
+      - name: Install build dependencies
+        run: uv sync --package morphottention --no-dev --group build --no-install-workspace
 
       # Build CUDA extension
       - name: Compile CUDA extension
-        run: uv run --no-sync --with setuptools --with wheel python setup.py build_ext --inplace
+        run: uv build --package morphottention --wheel --no-build-isolation
         env:
-          TORCH_CUDA_ARCH_LIST: "12.0"
           MAX_JOBS: "2"

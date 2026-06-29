@@ -40,13 +40,20 @@ execute_process(
 list(APPEND CMAKE_PREFIX_PATH "${TORCH_CMAKE_PREFIX}")
 find_package(Torch REQUIRED CONFIG)
 
+
+if(WIN32)
+    set(_TORCH_PYTHON_LIB_NAME "torch_python.lib")
+else()
+    set(_TORCH_PYTHON_LIB_NAME "libtorch_python.so")
+endif()
+
 execute_process(
-        COMMAND ${Python_EXECUTABLE} -c "import pathlib, torch; print(pathlib.Path(torch.__file__).resolve().parent / 'lib' / 'libtorch_python.so')"
+        COMMAND ${Python_EXECUTABLE} -c "import pathlib, torch; print(pathlib.Path(torch.__file__).resolve().parent / 'lib' / '${_TORCH_PYTHON_LIB_NAME}')"
         OUTPUT_VARIABLE TORCH_PYTHON_LIBRARY
         OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 if(NOT EXISTS "${TORCH_PYTHON_LIBRARY}")
-    message(FATAL_ERROR "Could not locate libtorch_python.so at: ${TORCH_PYTHON_LIBRARY}")
+    message(FATAL_ERROR "Could not locate ${_TORCH_PYTHON_LIB_NAME} at: ${TORCH_PYTHON_LIBRARY}")
 endif()
 get_filename_component(TORCH_LIB_DIR "${TORCH_PYTHON_LIBRARY}" DIRECTORY)
 
@@ -63,9 +70,18 @@ Python_add_library(_C MODULE WITH_SOABI
 # -lineinfo on Debug; full device debug (-G) only when explicitly sanitizing.
 option(CUDA_SANITIZE "Build device code with -G for compute-sanitizer" OFF)
 target_compile_options(_C PRIVATE
+        $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--threads=0>
         $<$<AND:$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>,$<CONFIG:Debug>>:-lineinfo>
         $<$<AND:$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>,$<CONFIG:Debug>,$<BOOL:${CUDA_SANITIZE}>>:-G>
 )
+
+
+if(MSVC)
+    target_compile_options(_C PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>
+    )
+endif()
 
 target_include_directories(_C PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/csrc
@@ -85,12 +101,13 @@ target_link_libraries(_C PRIVATE
         CUDA::cudart
         CUDA::cublas
 )
-target_link_options(_C PRIVATE "-Wl,--no-as-needed")
 
-
-set_target_properties(_C PROPERTIES
-        BUILD_RPATH   "${TORCH_LIB_DIR}"
-        INSTALL_RPATH "$ORIGIN/../torch/lib"
-)
+if(NOT WIN32)
+    target_link_options(_C PRIVATE "-Wl,--no-as-needed")
+    set_target_properties(_C PROPERTIES
+            BUILD_RPATH   "${TORCH_LIB_DIR}"
+            INSTALL_RPATH "$ORIGIN/../torch/lib"
+    )
+endif()
 
 install(TARGETS _C LIBRARY DESTINATION morphottention)

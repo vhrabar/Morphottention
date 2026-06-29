@@ -35,10 +35,10 @@ class MorphoAttentionFunction(torch.autograd.Function):
         out, lse = _C.forward(x, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal)
 
         ctx.save_for_backward(x, W_phi, gate_q, gate_k, W_V, lse)
-        ctx.H = H
-        ctx.cube_m = cube_m
-        ctx.scale = scale
-        ctx.causal = causal
+        ctx.H = H  # type: ignore[attr-defined]
+        ctx.cube_m = cube_m  # type: ignore[attr-defined]
+        ctx.scale = scale  # type: ignore[attr-defined]
+        ctx.causal = causal  # type: ignore[attr-defined]
         return out
 
     @staticmethod

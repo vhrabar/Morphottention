@@ -32,12 +32,14 @@ WORKDIR /app
 # deps
 COPY pyproject.toml ./
 COPY packages/${KERNEL_PKG}/pyproject.toml  packages/${KERNEL_PKG}/
+COPY attn-bench/pyproject.toml attn-bench/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --package "${KERNEL_PKG}" --no-dev --group build --no-install-project --no-editable
 
 # src + build
 COPY packages/${KERNEL_PKG}/CMakeLists.txt packages/${KERNEL_PKG}/
+COPY packages/${KERNEL_PKG}/README.md packages/${KERNEL_PKG}/
 COPY packages/${KERNEL_PKG}/csrc/ packages/${KERNEL_PKG}/csrc/
 COPY packages/${KERNEL_PKG}/src/  packages/${KERNEL_PKG}/src/
 RUN --mount=type=cache,target=/root/.cache/uv \
