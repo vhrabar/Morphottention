@@ -12,7 +12,6 @@
 
 namespace sm120 {
 
-
 template <int M, int N, int WARPS, bool TRANS_B>
 __device__ __forceinline__ void matmul(float* __restrict__ C, const __half* __restrict__ A,
                                        const __half* __restrict__ B, const int K, const int lda, const int ldb,
