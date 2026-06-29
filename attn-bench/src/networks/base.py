@@ -43,6 +43,7 @@ class ViT(nn.Module):
 
     def _encode(self, x: torch.Tensor) -> torch.Tensor:
         x = self.blocks(x)
+
         return self.norm(x)
 
     def _classify(self, x: torch.Tensor) -> torch.Tensor:

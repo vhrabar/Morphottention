@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import time
-import torch
-from torch import nn
 
+import torch
 from configs import DATASETS, RUNTIMES
 from data import get_loader
-from utils import build_model, apply_overrides, resolve_runtime, train, build_scheduler
+from torch import nn
+from utils import apply_overrides, build_model, build_scheduler, resolve_runtime, train
 
 
 def main() -> None:
@@ -18,7 +17,6 @@ def main() -> None:
     args = parser.parse_args()
 
     runtime = apply_overrides(resolve_runtime(args), args)
-
 
     if torch.cuda.is_available():
         cuda_index = torch.cuda.current_device()
@@ -44,6 +42,7 @@ def main() -> None:
     scaler = torch.amp.GradScaler(device="cuda", enabled=True)
 
     train(runtime, model, train_loader, val_loader, optimizer, scheduler, scaler, criterion, device)
+
 
 if __name__ == "__main__":
     main()

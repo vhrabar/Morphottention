@@ -2,15 +2,14 @@ import math
 import time
 
 import torch
-from torch import nn, Device
+from configs import TrainConfig
+from networks import ViT
+from torch import Device, nn
 from torch.cpu.amp import GradScaler
 from torch.nn import CrossEntropyLoss
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
-
-from configs import TrainConfig
-from networks import ViT
 
 
 def build_scheduler(optimizer: Optimizer, params: TrainConfig, steps_per_epoch: int) -> LRScheduler:
@@ -33,7 +32,16 @@ def build_scheduler(optimizer: Optimizer, params: TrainConfig, steps_per_epoch: 
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
 
-def train_one_epoch(model: ViT, loader: DataLoader, optimizer: Optimizer,scheduler: LRScheduler,scaler: GradScaler, criterion: CrossEntropyLoss, device,epoch: int,)-> tuple[float, float]:
+def train_one_epoch(
+    model: ViT,
+    loader: DataLoader,
+    optimizer: Optimizer,
+    scheduler: LRScheduler,
+    scaler: GradScaler,
+    criterion: CrossEntropyLoss,
+    device,
+    epoch: int,
+) -> tuple[float, float]:
     """
     SIngle epoch training loop
     :param model:
@@ -106,14 +114,27 @@ def evaluate(model: ViT, loader: DataLoader, criterion: CrossEntropyLoss, device
 
     return total_loss / total, correct / total
 
-def train(runtime, model: ViT, train_loader: DataLoader, val_loader: DataLoader, optimizer: Optimizer, scheduler: LRScheduler, scaler: GradScaler, criterion: CrossEntropyLoss, device: Device) -> None:
+
+def train(
+    runtime,
+    model: ViT,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    optimizer: Optimizer,
+    scheduler: LRScheduler,
+    scaler: GradScaler,
+    criterion: CrossEntropyLoss,
+    device: Device,
+) -> None:
     best_acc = 0.0
     ckpt_path = f"models/{runtime.name}_best.pt"
 
     for epoch in range(1, runtime.train.epochs + 1):
         t0 = time.time()
 
-        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, scheduler, scaler, criterion, device,epoch)
+        train_loss, train_acc = train_one_epoch(
+            model, train_loader, optimizer, scheduler, scaler, criterion, device, epoch
+        )
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
 
         elapsed = time.time() - t0
@@ -123,7 +144,6 @@ def train(runtime, model: ViT, train_loader: DataLoader, val_loader: DataLoader,
             f"val_loss={val_loss:.4f}  val_acc={100 * val_acc:.2f}%  "
             f"({elapsed:.1f}s)\n"
         )
-
 
         if val_acc > best_acc:
             best_acc = val_acc

@@ -1,11 +1,55 @@
 [project]
-name = "morphottention-kernels"
+name = "morphottention"
 version = "0.1.0"
-requires-python = ">=3.14"
+description = "CUDA attention & morphology kernels for PyTorch (sm_90/100/120)"
+readme = "README.md"
+requires-python = "==3.14.*"
+authors = [
+    { name = "Vedran Hrabar", email = "vedran.hrabar@outlook.com" },
+]
+license = { text = "MIT" }
+keywords = ["attention", "cuda", "pytorch", "transformer", "morfologfy", "flash-attention", "ViT"]
+
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+
+    "Environment :: GPU",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Environment :: GPU :: NVIDIA CUDA :: 13",
+
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+
+    "License :: OSI Approved :: MIT License",
+
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+
+    "Typing :: Typed",
+]
 
 dependencies = [
-    "torch",
+    "torch>=2.12",
 ]
+
+[project.urls]
+repository = "https://github.com/vhrabar/morphottention"
+documentation =  "https://github.com/vhrabar/morphottention/wiki"
+"Bug Tracker" = "https://github.com/vhrabar/morphottention/issues"
+
 
 [[tool.uv.index]]
 name = "pytorch"
@@ -16,9 +60,21 @@ explicit = true
 torch = { index = "pytorch" }
 torchvision = { index = "pytorch" }
 
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [build-system]
-requires = ["setuptools>=64", "wheel", "torch"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core==0.12.2"]
+build-backend = "scikit_build_core.build"
+
+
+[dependency-groups]
+build = ["scikit-build-core==0.12.2", "cmake", "ninja"]
+
+
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.24"
+build-dir = "build/{wheel_tag}"
+
+wheel.packages = ["src/morphottention"]
+editable.rebuild = true
