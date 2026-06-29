@@ -32,9 +32,13 @@ class MorphoAttentionFunction(torch.autograd.Function):
             raise ValueError("MorphoAttention expects a CUDA tensor")
 
         x = x.contiguous()
-        (out,) = _C.forward(x, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal)
+        out, lse = _C.forward(x, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal)
 
-        ctx.save_for_backward(x)
+        ctx.save_for_backward(x, W_phi, gate_q, gate_k, W_V, lse)
+        ctx.H = H
+        ctx.cube_m = cube_m
+        ctx.scale = scale
+        ctx.causal = causal
         return out
 
     @staticmethod
@@ -42,12 +46,7 @@ class MorphoAttentionFunction(torch.autograd.Function):
         ctx: torch.autograd.function.FunctionCtx,
         grad_out: torch.Tensor,
     ) -> tuple[torch.Tensor | None, ...]:
-        (x,) = ctx.saved_tensors  # type: ignore[attr-defined]
-        grad_out = grad_out.contiguous()
-        grads = _C.backward(grad_out, x)
-        dX = grads[0]
-        # Only dX is produced by the current backward kernel; weight grads are not wired yet.
-        return dX, None, None, None, None, None, None, None, None
+        raise NotImplementedError("MorphoAttention BWD has not been implemented yet.")
 
 
 class MorphoAttention(nn.Module):

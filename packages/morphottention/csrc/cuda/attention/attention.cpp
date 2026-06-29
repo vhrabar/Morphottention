@@ -53,7 +53,7 @@ std::vector<torch::Tensor> morpho_forward(const torch::Tensor& X, const torch::T
                                       static_cast<int>(H), static_cast<int>(cube_m), static_cast<int>(head_dim_v),
                                       static_cast<float>(scale), c10::cuda::getCurrentCUDAStream());
 
-    return {out};
+    return {out, lse};
 }
 
 std::vector<torch::Tensor> morpho_backward(const torch::Tensor& X, const torch::Tensor& grad_out) {

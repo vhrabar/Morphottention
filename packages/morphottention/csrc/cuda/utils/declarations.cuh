@@ -50,6 +50,8 @@ constexpr int HEAD_DIM_V_FWD = KERNEL_HEAD_DIM_V;
 constexpr int TILE_M_FWD = BR_FWD;
 constexpr int TILE_N_FWD = BC_FWD;
 
+constexpr int XT_ROWS = (BR_FWD > BC_FWD) ? BR_FWD : BC_FWD;
+
 // ---------------------------------------------------------------------------
 // Backward tiles
 // ---------------------------------------------------------------------------

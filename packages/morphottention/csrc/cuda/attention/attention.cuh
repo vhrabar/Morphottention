@@ -23,12 +23,6 @@ namespace impl = sm120; // Consumer Blackwell
 namespace impl = sm120; // fallback
 #endif
 } // namespace arch
-
-template <int HEAD_DIM_V, int CUBE_M, int BR, int BC>
-__global__ void morpho_attention_forward_kernel(const __half* __restrict__ X, const __half* __restrict__ W_phi,
-                                                const __half* __restrict__ gate_q, const __half* __restrict__ gate_k,
-                                                const __half* __restrict__ W_V, __half* __restrict__ out,
-                                                float* __restrict__ lse, int B, int N, int D, int H, float scale);
 #endif // __CUDACC__
 
 void attention_forward_kernel_launcher(const __half* X, const __half* W_phi, const __half* gate_q, const __half* gate_k,
