@@ -1,7 +1,14 @@
 [project]
 name = "morphottention"
 version = "0.1.0"
+description = "CUDA attention & morphology kernels for PyTorch (sm_90/100/120)"
+readme = "README.md"
 requires-python = "==3.14.*"
+authors = [
+    { name = "Vedran Hrabar", email = "vedran.hrabar@outlook.com" },
+]
+license = { text = "MIT" }
+keywords = ["attention", "cuda", "pytorch", "transformer", "morfologfy", "flash-attention", "ViT"]
 
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -35,8 +42,14 @@ classifiers = [
 ]
 
 dependencies = [
-    "torch==2.12.0+cu132",
+    "torch>=2.12",
 ]
+
+[project.urls]
+repository = "https://github.com/vhrabar/morphottention"
+documentation =  "https://github.com/vhrabar/morphottention/wiki"
+"Bug Tracker" = "https://github.com/vhrabar/morphottention/issues"
+
 
 [[tool.uv.index]]
 name = "pytorch"

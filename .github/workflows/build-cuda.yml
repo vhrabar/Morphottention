@@ -10,7 +10,7 @@ on:
       - '**/*.cuh'
       - '**/*.cpp'
       - '**/*.h'
-      - 'setup.py'
+      - '**/CMakeLists.txt'
       - 'pyproject.toml'
       - 'uv.lock'
   pull_request:
@@ -21,7 +21,7 @@ on:
       - '**/*.cuh'
       - '**/*.cpp'
       - '**/*.h'
-      - 'setup.py'
+      - '**/CMakeLists.txt'
       - 'pyproject.toml'
       - 'uv.lock'
 
@@ -75,12 +75,11 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       # Installs project dependencies
-      - name: Install dependencies (no project build)
-        run: uv sync --no-dev --no-install-workspace
+      - name: Install build dependencies
+        run: uv sync --package morphottention --no-dev --group build --no-install-workspace
 
       # Build CUDA extension
       - name: Compile CUDA extension
-        run: uv run --no-sync --with setuptools --with wheel python setup.py build_ext --inplace
+        run: uv build --package morphottention --wheel --no-build-isolation
         env:
-          TORCH_CUDA_ARCH_LIST: "12.0"
           MAX_JOBS: "2"
