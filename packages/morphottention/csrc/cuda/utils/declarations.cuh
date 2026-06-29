@@ -2,6 +2,11 @@
 #define MORPHOTTENTION_DECLARATIONS_CUH
 
 // ---------------------------------------------------------------------------
+// MATH
+// ---------------------------------------------------------------------------
+static constexpr float LOG2E = 1.44269504088896340736f;
+
+// ---------------------------------------------------------------------------
 // Threadblock geometry
 // ---------------------------------------------------------------------------
 #ifndef KERNEL_BLOCK_SIZE
@@ -11,6 +16,9 @@
 constexpr int BLOCK_SIZE = KERNEL_BLOCK_SIZE;
 constexpr int WARPS = BLOCK_SIZE / 32;
 
+static constexpr int WM = 16;
+static constexpr int WN = 16;
+static constexpr int WK = 16;
 // ---------------------------------------------------------------------------
 // Sequence tiles (forward)
 // ---------------------------------------------------------------------------
