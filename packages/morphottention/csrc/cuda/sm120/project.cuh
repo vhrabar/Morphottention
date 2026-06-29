@@ -2,6 +2,7 @@
 #define MORPHOTTENTION_PROJECT_CUH
 
 #include "cuda/morfology/cube.cuh"
+#include "cuda/utils/declarations.cuh"
 #include "cuda/utils/reductions.cuh"
 
 #include <cuda_runtime.h>
@@ -26,11 +27,11 @@ __device__ __forceinline__ void project_phi(const __half* __restrict__ x_tile,  
     const int KD_AT = D / WK;
 
     // Z[ROWS, CUBE_M] = X @ W_phi_h
-    for (int mb = warp; mb < M_AT; mb += WARPS) {
-        for (int nb = 0; nb < N_AT; ++nb) {
+    for (unsigned int mb = warp; mb < M_AT; mb += WARPS) {
+        for (unsigned nb = 0; nb < N_AT; ++nb) {
             nvcuda::wmma::fragment<nvcuda::wmma::accumulator, WM, WN, WK, float> fragment_acc;
             nvcuda::wmma::fill_fragment(fragment_acc, 0.0f);
-            for (int kb = 0; kb < KD_AT; ++kb) {
+            for (unsigned int kb = 0; kb < KD_AT; ++kb) {
                 nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, WM, WN, WK, __half, nvcuda::wmma::row_major> fragment_a;
                 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, WM, WN, WK, __half, nvcuda::wmma::row_major> fragment_b;
 
@@ -44,9 +45,9 @@ __device__ __forceinline__ void project_phi(const __half* __restrict__ x_tile,  
     }
     __syncthreads();
 
-    for (int r = warp; r < ROWS; r += WARPS) {
+    for (unsigned int r = warp; r < ROWS; r += WARPS) {
         float b_acc = 0.0f;
-        for (int c = lane; c < CUBE_M; c += 32) {
+        for (unsigned int c = lane; c < CUBE_M; c += 32) {
             // sigma (z)
             const float phi = Proj::project(fp32_stage[r * CUBE_M + c]);
             // gate @ Phi
