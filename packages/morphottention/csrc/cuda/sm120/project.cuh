@@ -2,6 +2,7 @@
 #define MORPHOTTENTION_PROJECT_CUH
 
 #include "cuda/morfology/cube.cuh"
+#include "cuda/sm120/matmul.cuh"
 #include "cuda/utils/declarations.cuh"
 #include "cuda/utils/reductions.cuh"
 
@@ -21,28 +22,9 @@ __device__ __forceinline__ void project_phi(const __half* __restrict__ x_tile,  
                                             float* __restrict__ bias,                // [ROWS] out
                                             float* __restrict__ fp32_stage,          // [ROWS, CUBE_M] scratch
                                             const int D, const int ldphi, const unsigned warp, const unsigned lane) {
-    constexpr int WM = 16, WN = 16, WK = 16;
-    constexpr int M_AT = ROWS / WM;
-    constexpr int N_AT = CUBE_M / WN;
-    const int KD_AT = D / WK;
 
     // Z[ROWS, CUBE_M] = X @ W_phi_h
-    for (unsigned int mb = warp; mb < M_AT; mb += WARPS) {
-        for (unsigned nb = 0; nb < N_AT; ++nb) {
-            nvcuda::wmma::fragment<nvcuda::wmma::accumulator, WM, WN, WK, float> fragment_acc;
-            nvcuda::wmma::fill_fragment(fragment_acc, 0.0f);
-            for (unsigned int kb = 0; kb < KD_AT; ++kb) {
-                nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, WM, WN, WK, __half, nvcuda::wmma::row_major> fragment_a;
-                nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, WM, WN, WK, __half, nvcuda::wmma::row_major> fragment_b;
-
-                nvcuda::wmma::load_matrix_sync(fragment_a, x_tile + (mb * WM) * D + kb * WK, D);
-                nvcuda::wmma::load_matrix_sync(fragment_b, W_phi_h + (kb * WK) * ldphi + nb * WN, ldphi);
-                nvcuda::wmma::mma_sync(fragment_acc, fragment_a, fragment_b, fragment_acc);
-            }
-            nvcuda::wmma::store_matrix_sync(fp32_stage + (mb * WM) * CUBE_M + nb * WN, fragment_acc, CUBE_M,
-                                            nvcuda::wmma::mem_row_major);
-        }
-    }
+    matmul<ROWS, CUBE_M, WARPS, /*TRANS_B=*/false>(fp32_stage, x_tile, W_phi_h, D, D, ldphi, CUBE_M, 1.0f);
     __syncthreads();
 
     for (unsigned int r = warp; r < ROWS; r += WARPS) {
