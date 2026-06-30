@@ -291,6 +291,65 @@ __global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad
     }
     __syncthreads();
 
+    // restore S/P from LSE
+    unsigned int n_tiles = (static_cast<unsigned int>(N) + BC - 1) / BC;
+    const int q_global_max = q_row_start + q_rows - 1;
+    if (CAUSAL) {
+        n_tiles = min(n_tiles, static_cast<unsigned int>(q_global_max) / BC + 1u);
+    }
+
+    const float scale_log2 = scale * LOG2E;
+
+    for (unsigned int tile = 0; tile < n_tiles; tile++) {
+        const int kv_block_start = static_cast<int>(tile) * BC;
+        const int kv_valid = min(BC, N - kv_block_start);
+
+        // stage K/V tokens
+        arch::impl::smem_load(xt_mem, X_b + kv_block_start * D, static_cast<unsigned int>(kv_valid),
+                              static_cast<unsigned int>(D), tid, BC);
+        __syncthreads();
+
+        // project K to the gated hypercube
+        // k = gate_k @ sigma(W_phi.t, x_j) -> k_mem, c_bias = gate_q x k_j
+        arch::impl::project_phi<BC, CUBE_M, WARPS>(xt_mem, W_phi_h, gate_k_h, gate_q_h, k_mem, cbias_mem, s_mem, D,
+                                                   ldphi, warp, lane);
+
+        // v = W_v x x_j -> s_mem -> v_mem
+        arch::impl::matmul<BC, HEAD_DIM_V, WARPS, false>(s_mem, xt_mem, W_V_h, D, D, ldv, HEAD_DIM_V, 1.0f);
+        __syncthreads();
+        for (unsigned int i = tid; i < BC * HEAD_DIM_V; i += blockDim.x) {
+            v_mem[i] = __float2half(s_mem[i]);
+        }
+        __syncthreads();
+
+        // S_raw = QK.T -> s_mem
+        arch::impl::matmul<BR, BC, WARPS, true>(s_mem, q_mem, k_mem, CUBE_M, CUBE_M, CUBE_M, BC, 1.0f);
+        __syncthreads();
+
+        // P = exp((2S_raw − qbias[i] − cbias[j])·scale_log2 − lse[i])
+        // symetry -> -inf mask
+        for (unsigned int row = 0; row < BR / WARPS; row++) {
+            const unsigned int row_cor = row + warp * (BR / WARPS);
+            const int q_global = q_row_start + static_cast<int>(row_cor);
+            const float lse_i = lse_mem[row_cor];
+
+            for (unsigned int c = lane; c < BC; c += 32) {
+                const float s = (2.0f * s_mem[row_cor * BC + c] - qbias_mem[row_cor] - cbias_mem[c]) * scale_log2;
+                const int k_global = kv_block_start + static_cast<int>(c);
+
+                bool drop = (static_cast<int>(c) >= kv_valid) || (static_cast<int>(row_cor) >= q_rows);
+                if (CAUSAL && k_global > q_global)
+                    drop = true;
+                if (MASK_DIAG && k_global == q_global)
+                    drop = true;
+
+                const float p = (drop || lse_i == -FLT_MAX) ? 0.0f : exp2f(s - lse_i);
+                p_h_mem[row_cor * BC + c] = __float2half(p);
+            }
+        }
+        __syncthreads();
+    }
+
     // store to GMEM
     for (unsigned int row = 0; row < BR / WARPS; row++) {
         const unsigned int row_cor = row + warp * (BR / WARPS);

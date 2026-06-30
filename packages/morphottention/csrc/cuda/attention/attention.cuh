@@ -17,7 +17,7 @@
 #include <c10/util/Exception.h>
 
 namespace arch {
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 120)
+#if __CUDA_ARCH__ == 1200
 namespace impl = sm120; // Consumer Blackwell
 #else
 namespace impl = sm120; // fallback
