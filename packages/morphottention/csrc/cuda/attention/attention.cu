@@ -188,6 +188,18 @@ __global__ void morpho_attention_forward_kernel(const __half* __restrict__ X, co
     }
 }
 
+
+template <int HEAD_DIM_V, int CUBE_M, int BR, int BC>
+__global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad_out, const __half* __restrict__ X,
+                                                 const __half* __restrict__ W_phi, const __half* __restrict__ gate_q,
+                                                 const __half* __restrict__ gate_k, const __half* __restrict__ W_V,
+                                                 const __half* __restrict__ out, const float* __restrict__ lse,
+                                                 __half* __restrict__ dX, __half* __restrict__ dW_phi,
+                                                 __half* __restrict__ d_gate_q, __half* __restrict__ d_gate_k,
+                                                 __half* __restrict__ dW_V, int B, int N, int D, int H, float scale) {
+}
+
+
 void attention_forward_kernel_launcher(const __half* X, const __half* W_phi, const __half* gate_q, const __half* gate_k,
                                        const __half* W_V, __half* out, float* lse, const int B, const int N,
                                        const int D, const int H, const int cube_m, const int head_dim_v,
@@ -227,9 +239,38 @@ void attention_forward_kernel_launcher(const __half* X, const __half* W_phi, con
     C10_CUDA_KERNEL_LAUNCH_CHECK();
 }
 
-void attention_backward_kernel_launcher(const __half* grad_out, const __half* X, const __half* dX, const __half* d_se,
-                                        int B, int N, int D, cudaStream_t stream) {
-    TORCH_CHECK(B > 0 && N > 0 && D > 0, "Invalid dimensions");
+
+void attention_backward_kernel_launcher(const __half* grad_out, const __half* X, const __half* W_phi,
+                                        const __half* gate_q, const __half* gate_k, const __half* W_V,
+                                        const __half* out, const float* lse, __half* dX, __half* dW_phi,
+                                        __half* d_gate_q, __half* d_gate_k, __half* dW_V, const int B, const int N,
+                                        const int D, const int H, const int cube_m, const int head_dim_v,
+                                        const float scale, cudaStream_t stream) {
+
+    // checkers
+    TORCH_CHECK(B > 0 && N > 0 && D > 0 && H > 0, "Invalid dimensions");
+    TORCH_CHECK(D % H == 0, "D must be divisible by H");
+    TORCH_CHECK(H * head_dim_v == D, "H * head_dim_v must equal D");
+    TORCH_CHECK(cube_m == CUBE_M_FWD && head_dim_v == HEAD_DIM_V_FWD, "kernel built for fixed (cube_m, head_dim_v)");
+    TORCH_CHECK(grad_out && X && W_phi && gate_q && gate_k && W_V && out && lse, "Null input pointer");
+    TORCH_CHECK(dX && dW_phi && d_gate_q && d_gate_k && dW_V, "Null grad pointer");
+
+    // smem carve
+    const size_t smem = 0;
+
+    // kernel instance
+    const auto kernel = morpho_attention_backward_kernel<HEAD_DIM_V_FWD, CUBE_M_FWD, BR_BWD, BC_BWD>;
+
+    // smem alloc check
+    static int bwd_cached = -1;
+    configure_kernel_smem(kernel, smem, bwd_cached, "backward_kernel");
+
+    // launch
+    dim3 grid(B * H, (N + BR_BWD - 1) / BR_BWD);
+    dim3 block(BLOCK_SIZE);
+
+    kernel<<<grid, block, smem, stream>>>(grad_out, X, W_phi, gate_q, gate_k, W_V, out, lse, dX, dW_phi, d_gate_q,
+                                          d_gate_k, dW_V, B, N, D, H, scale);
 
     C10_CUDA_KERNEL_LAUNCH_CHECK();
 }
