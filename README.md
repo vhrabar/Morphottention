@@ -1,9 +1,11 @@
 # Morphottention
 
-![Python](https://img.shields.io/badge/python-3.14-blue)
-![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.12-ee4c2c)
-![CUDA](https://img.shields.io/badge/cuda-13.X-76b900)
-![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-%E2%89%A53.12-blue?style=for-the-badge&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.12-ee4c2c?style=for-the-badge&logo=pytorch)
+![CUDA](https://img.shields.io/badge/cuda-13.X-76b900?style=for-the-badge&logo=nvidia)
+![PyPI Version](https://img.shields.io/pypi/v/morphottention?style=for-the-badge&logo=pypi&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)
+
 
 Mathematical Morphology-based self-attention module for PyTorch (CUDA) using Flash-style kernel fusion.
 
@@ -16,7 +18,7 @@ This is a [uv](https://docs.astral.sh/uv/) workspace:
 
 ## Install
 
-Prebuilt wheels (CPython 3.14; Linux x86_64/aarch64, Windows x86_64) require a
+Prebuilt wheels (CPython 3.12–3.14; Linux x86_64/aarch64, Windows x86_64) require a
 CUDA-enabled `torch >= 2.12` already installed:
 
 ```bash
@@ -24,7 +26,8 @@ pip install morphottention
 ```
 
 ## Develop
-Setup the workspace:
+
+Set up the workspace:
 ```bash
 uv sync
 ```
