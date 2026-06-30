@@ -90,31 +90,29 @@ std::vector<torch::Tensor> morpho_backward(const torch::Tensor& grad_out, const 
     TORCH_CHECK(gate_k.dim() == 2 && gate_k.size(0) == H && gate_k.size(1) == cube_m, "gate_k must be [H, cube_m]");
     TORCH_CHECK(lse.dim() == 2 && lse.size(0) == B * H && lse.size(1) == N, "lse must be [B*H, N]");
 
-    // grad outputs
-    auto dX = torch::empty_like(X);
-    auto dW_phi = torch::empty_like(W_phi);
-    auto d_gate_q = torch::empty_like(gate_q);
-    auto d_gate_k = torch::empty_like(gate_k);
-    auto dW_V = torch::empty_like(W_V);
+    // grad outputs (zero-initialised: the kernel accumulates into these via atomics)
+    auto dX = torch::zeros_like(X);
+    auto dW_phi = torch::zeros_like(W_phi);
+    auto d_gate_q = torch::zeros_like(gate_q);
+    auto d_gate_k = torch::zeros_like(gate_k);
+    auto dW_V = torch::zeros_like(W_V);
 
     // launcher
     const c10::cuda::CUDAStreamGuard guard(c10::cuda::getCurrentCUDAStream());
 
-    attention_backward_kernel_launcher(reinterpret_cast<const __half*>(grad_out.data_ptr<at::Half>()),
-                                       reinterpret_cast<const __half*>(X.data_ptr<at::Half>()),
-                                       reinterpret_cast<const __half*>(W_phi.data_ptr<at::Half>()),
-                                       reinterpret_cast<const __half*>(gate_q.data_ptr<at::Half>()),
-                                       reinterpret_cast<const __half*>(gate_k.data_ptr<at::Half>()),
-                                       reinterpret_cast<const __half*>(W_V.data_ptr<at::Half>()),
-                                       reinterpret_cast<const __half*>(out.data_ptr<at::Half>()), lse.data_ptr<float>(),
-                                       reinterpret_cast<__half*>(dX.data_ptr<at::Half>()),
-                                       reinterpret_cast<__half*>(dW_phi.data_ptr<at::Half>()),
-                                       reinterpret_cast<__half*>(d_gate_q.data_ptr<at::Half>()),
-                                       reinterpret_cast<__half*>(d_gate_k.data_ptr<at::Half>()),
-                                       reinterpret_cast<__half*>(dW_V.data_ptr<at::Half>()), static_cast<int>(B),
-                                       static_cast<int>(N), static_cast<int>(D), static_cast<int>(H),
-                                       static_cast<int>(cube_m), static_cast<int>(head_dim_v), static_cast<float>(scale),
-                                       c10::cuda::getCurrentCUDAStream());
+    attention_backward_kernel_launcher(
+        reinterpret_cast<const __half*>(grad_out.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(X.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(W_phi.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(gate_q.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(gate_k.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(W_V.data_ptr<at::Half>()),
+        reinterpret_cast<const __half*>(out.data_ptr<at::Half>()), lse.data_ptr<float>(),
+        reinterpret_cast<__half*>(dX.data_ptr<at::Half>()), reinterpret_cast<__half*>(dW_phi.data_ptr<at::Half>()),
+        reinterpret_cast<__half*>(d_gate_q.data_ptr<at::Half>()),
+        reinterpret_cast<__half*>(d_gate_k.data_ptr<at::Half>()), reinterpret_cast<__half*>(dW_V.data_ptr<at::Half>()),
+        static_cast<int>(B), static_cast<int>(N), static_cast<int>(D), static_cast<int>(H), static_cast<int>(cube_m),
+        static_cast<int>(head_dim_v), static_cast<float>(scale), c10::cuda::getCurrentCUDAStream());
 
     return {dX, dW_phi, d_gate_q, d_gate_k, dW_V};
 }

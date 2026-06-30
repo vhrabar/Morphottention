@@ -188,7 +188,6 @@ __global__ void morpho_attention_forward_kernel(const __half* __restrict__ X, co
     }
 }
 
-
 template <int HEAD_DIM_V, int CUBE_M, int BR, int BC>
 __global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad_out, const __half* __restrict__ X,
                                                  const __half* __restrict__ W_phi, const __half* __restrict__ gate_q,
@@ -197,8 +196,113 @@ __global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad
                                                  __half* __restrict__ dX, __half* __restrict__ dW_phi,
                                                  __half* __restrict__ d_gate_q, __half* __restrict__ d_gate_k,
                                                  __half* __restrict__ dW_V, int B, int N, int D, int H, float scale) {
-}
 
+    static_assert(HEAD_DIM_V <= BR, "HEAD_DIM_V must be <= BR");
+    static_assert(HEAD_DIM_V <= BC, "HEAD_DIM_V must be <= BC");
+
+    // NOLINTNEXTLINE(readability-suspicious-call-argument)
+    const auto [t, b, tid] = get_coords();
+    const unsigned int warp = tid / 32;
+    const unsigned int lane = tid & 31;
+
+    const unsigned int bh = t;
+    const unsigned int batch = bh / static_cast<unsigned int>(H);
+    const unsigned int head = bh % static_cast<unsigned int>(H);
+
+    const int q_row_start = static_cast<int>(b) * BR;
+    const int q_row_end = min(q_row_start + BR, N);
+    const int q_rows = q_row_end - q_row_start;
+    if (q_rows <= 0) {
+        return;
+    }
+
+    const int ldphi = H * CUBE_M;
+    const int ldv = H * HEAD_DIM_V;
+
+    const __half* X_b = X + batch * N * D;
+    const __half* W_phi_h = W_phi + head * CUBE_M;
+    const __half* W_V_h = W_V + head * HEAD_DIM_V;
+    const __half* gate_q_h = gate_q + head * CUBE_M;
+    const __half* gate_k_h = gate_k + head * CUBE_M;
+    const __half* dO_s = grad_out + batch * N * D + head * HEAD_DIM_V;
+    const __half* out_s = out + batch * N * D + head * HEAD_DIM_V;
+    const float* lse_s = lse + bh * N;
+    __half* dX_s = dX + batch * N * D;
+
+    // smem carve
+    constexpr int XT_ROWS = (BR > BC) ? BR : BC;
+    extern __shared__ __align__(16) unsigned char smem[];
+    auto* q_mem = reinterpret_cast<__half*>(smem); // q codes [BR, CUBE_M]
+    auto* k_mem = q_mem + BR * CUBE_M;             // k codes [BC, CUBE_M]
+    auto* v_mem = k_mem + BC * CUBE_M;             // V tile  [BC, HEAD_DIM_V]
+    auto* do_mem = v_mem + BC * HEAD_DIM_V;        // dO tile [BR, HEAD_DIM_V]
+    auto* xt_mem = do_mem + BR * HEAD_DIM_V;       // token staging [max(BR,BC), D]
+    auto* p_h_mem = xt_mem + XT_ROWS * D;          // P fp16 tile [BR, BC]
+
+    auto* s_mem = reinterpret_cast<float*>(p_h_mem + BR * BC); // S/P tile [BR, BC]
+    auto* dx_acc = s_mem + BR * BC;                            // dX acc [BR, D]
+    auto* state_mem = dx_acc + BR * D;
+
+    float* lse_mem = state_mem;            // [BR]
+    float* delta_mem = state_mem + BR;     // [BR]
+    float* qbias_mem = state_mem + 2 * BR; // [BR]
+    float* cbias_mem = state_mem + 3 * BR; // [BC]
+
+    for (unsigned int i = tid; i < BR * D; i += blockDim.x) {
+        dx_acc[i] = 0.0f;
+    }
+
+    // move X to SRAM
+    arch::impl::smem_load(xt_mem, X_b + q_row_start * D, static_cast<unsigned int>(q_rows),
+                          static_cast<unsigned int>(D), tid, BR);
+    __syncthreads();
+
+    // project Q to the gated unit-hypercube
+    // q = gate_q @ sigma(W_phi.t, x_q) -> q_mem, q_bias = gate_k x q_i
+    arch::impl::project_phi<BR, CUBE_M, WARPS>(xt_mem, W_phi_h, gate_q_h, gate_k_h, q_mem, qbias_mem, s_mem, D, ldphi,
+                                               warp, lane);
+
+    // stage dO -> do_mem
+    for (unsigned int i = tid; i < BR * HEAD_DIM_V; i += blockDim.x) {
+        const unsigned int r = i / HEAD_DIM_V;
+        const unsigned int d = i % HEAD_DIM_V;
+        const int g_row = q_row_start + static_cast<int>(r);
+        do_mem[i] = (static_cast<int>(r) < q_rows && g_row < N) ? dO_s[g_row * D + d] : __float2half(0.0f);
+    }
+    __syncthreads();
+
+    // lse_i and delta_i = sum_d (dO_i * O_i)
+    for (unsigned int row = 0; row < BR / WARPS; row++) {
+        const unsigned int row_cor = row + warp * (BR / WARPS);
+        const int g_row = q_row_start + static_cast<int>(row_cor);
+        const bool valid = (static_cast<int>(row_cor) < q_rows) && (g_row < N);
+
+        float d_acc = 0.0f;
+        if (valid) {
+            for (unsigned int d = lane; d < HEAD_DIM_V; d += 32) {
+                d_acc += __half2float(do_mem[row_cor * HEAD_DIM_V + d]) * __half2float(out_s[g_row * D + d]);
+            }
+        }
+        d_acc = warpAllReduceSum(d_acc);
+        if (lane == 0) {
+            delta_mem[row_cor] = d_acc;
+            lse_mem[row_cor] = valid ? lse_s[g_row] : -FLT_MAX;
+        }
+    }
+    __syncthreads();
+
+    // store to GMEM
+    for (unsigned int row = 0; row < BR / WARPS; row++) {
+        const unsigned int row_cor = row + warp * (BR / WARPS);
+        const int g_row = q_row_start + static_cast<int>(row_cor);
+        if (static_cast<int>(row_cor) >= q_rows || g_row >= N) {
+            continue;
+        }
+        for (unsigned int d = lane; d < static_cast<unsigned int>(D); d += 32) {
+            atomicAdd(&dX_s[g_row * D + d], __float2half(dx_acc[row_cor * D + d]));
+        }
+    }
+}
 
 void attention_forward_kernel_launcher(const __half* X, const __half* W_phi, const __half* gate_q, const __half* gate_k,
                                        const __half* W_V, __half* out, float* lse, const int B, const int N,
@@ -239,7 +343,6 @@ void attention_forward_kernel_launcher(const __half* X, const __half* W_phi, con
     C10_CUDA_KERNEL_LAUNCH_CHECK();
 }
 
-
 void attention_backward_kernel_launcher(const __half* grad_out, const __half* X, const __half* W_phi,
                                         const __half* gate_q, const __half* gate_k, const __half* W_V,
                                         const __half* out, const float* lse, __half* dX, __half* dW_phi,
@@ -256,7 +359,17 @@ void attention_backward_kernel_launcher(const __half* grad_out, const __half* X,
     TORCH_CHECK(dX && dW_phi && d_gate_q && d_gate_k && dW_V, "Null grad pointer");
 
     // smem carve
-    const size_t smem = 0;
+    constexpr int XT_ROWS_BWD = (BR_BWD > BC_BWD) ? BR_BWD : BC_BWD;
+    const size_t smem = sizeof(__half) * (BR_BWD * CUBE_M_FWD +     // q codes
+                                          BC_BWD * CUBE_M_FWD +     // k codes
+                                          BC_BWD * HEAD_DIM_V_FWD + // V tile
+                                          BR_BWD * HEAD_DIM_V_FWD + // dO tile
+                                          BR_BWD * BC_BWD)          // P tile
+                        + sizeof(__half) * (XT_ROWS_BWD * D)        // shared raw-token staging tile
+                        + sizeof(float) * (BR_BWD * BC_BWD +        // S/P tile
+                                           BR_BWD * D +             // dX accumulator
+                                           3 * BR_BWD +             // lse + delta + qbias
+                                           BC_BWD);                 // column bias
 
     // kernel instance
     const auto kernel = morpho_attention_backward_kernel<HEAD_DIM_V_FWD, CUBE_M_FWD, BR_BWD, BC_BWD>;
