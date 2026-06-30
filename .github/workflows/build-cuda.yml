@@ -1,5 +1,7 @@
 name: CUDA Compile Check
 
+permissions:
+  contents: read
 
 on:
   push:
