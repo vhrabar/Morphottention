@@ -42,6 +42,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        arch: [x86_64, aarch64]
+        python: [cp312-cp312, cp313-cp313, cp314-cp314]
         include:
           - arch: x86_64
             runner: ubuntu-latest
@@ -68,7 +70,7 @@ jobs:
           CUDA_HOME: /usr/local/cuda-13.2
           MAX_JOBS: "2"
         run: |
-          export PATH="/usr/local/cuda-13.2/bin:/opt/python/cp314-cp314/bin:${PATH}"
+          export PATH="/usr/local/cuda-13.2/bin:/opt/python/${{ matrix.python }}/bin:${PATH}"
           python -m pip install --upgrade pip
           # CUDA-enabled torch used only to compile against (no build isolation).
           python -m pip install --index-url "${TORCH_INDEX}" "torch>=2.12"
@@ -77,7 +79,7 @@ jobs:
 
       - name: Repair wheel (retag manylinux, do not vendor torch/cuda)
         run: |
-          export PATH="/opt/python/cp314-cp314/bin:${PATH}"
+          export PATH="/opt/python/${{ matrix.python }}/bin:${PATH}"
           auditwheel repair dist_raw/*.whl --wheel-dir dist \
             --exclude 'libtorch*.so*' \
             --exclude 'libc10*.so*' \
@@ -88,18 +90,22 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.arch }}
+          name: wheels-linux-${{ matrix.arch }}-${{ matrix.python }}
           path: dist/*.whl
 
   # Windows wheel (x86_64)
   windows-wheel:
     runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.python }}
 
       - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.35
@@ -122,7 +128,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows-x86_64
+          name: wheels-windows-x86_64-${{ matrix.python }}
           path: dist/*.whl
 
   # Attach every artifact to the GitHub Release

@@ -3,7 +3,7 @@ name = "morphottention"
 version = "0.1.0"
 description = "CUDA attention & morphology kernels for PyTorch (sm_90/100/120)"
 readme = "README.md"
-requires-python = "==3.14.*"
+requires-python = ">=3.12"
 authors = [
     { name = "Vedran Hrabar", email = "vedran.hrabar@outlook.com" },
 ]
@@ -28,6 +28,8 @@ classifiers = [
     "Programming Language :: C++",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
 
