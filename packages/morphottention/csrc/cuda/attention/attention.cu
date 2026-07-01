@@ -228,28 +228,48 @@ __global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad
     const __half* out_s = out + batch * N * D + head * HEAD_DIM_V;
     const float* lse_s = lse + bh * N;
     __half* dX_s = dX + batch * N * D;
+    __half* dW_phi_h = dW_phi + head * CUBE_M;     // [D, CUBE_M] head slice, ld = ldphi
+    __half* dW_V_h = dW_V + head * HEAD_DIM_V;     // [D, HEAD_DIM_V] head slice, ld = ldv
+    __half* d_gate_q_h = d_gate_q + head * CUBE_M; // [CUBE_M]
+    __half* d_gate_k_h = d_gate_k + head * CUBE_M; // [CUBE_M]
 
     // smem carve
     constexpr int XT_ROWS = (BR > BC) ? BR : BC;
+    constexpr int DW_COLS = (CUBE_M > HEAD_DIM_V) ? CUBE_M : HEAD_DIM_V;
     extern __shared__ __align__(16) unsigned char smem[];
     auto* q_mem = reinterpret_cast<__half*>(smem); // q codes [BR, CUBE_M]
     auto* k_mem = q_mem + BR * CUBE_M;             // k codes [BC, CUBE_M]
     auto* v_mem = k_mem + BC * CUBE_M;             // V tile  [BC, HEAD_DIM_V]
     auto* do_mem = v_mem + BC * HEAD_DIM_V;        // dO tile [BR, HEAD_DIM_V]
     auto* xt_mem = do_mem + BR * HEAD_DIM_V;       // token staging [max(BR,BC), D]
-    auto* p_h_mem = xt_mem + XT_ROWS * D;          // P fp16 tile [BR, BC]
+    auto* p_h_mem = xt_mem + XT_ROWS * D;          // P fp16 tile [BR, BC] (then dS_raw fp16)
+    auto* dv_h = p_h_mem + BR * BC;                // dV fp16 [BC, HEAD_DIM_V]
+    auto* dz_h = dv_h + BC * HEAD_DIM_V;           // dZ fp16 [max(BR,BC), CUBE_M]
 
-    auto* s_mem = reinterpret_cast<float*>(p_h_mem + BR * BC); // S/P tile [BR, BC]
-    auto* dx_acc = s_mem + BR * BC;                            // dX acc [BR, D]
-    auto* state_mem = dx_acc + BR * D;
+    auto* s_mem = reinterpret_cast<float*>(dz_h + XT_ROWS * CUBE_M); // S/dP/dS tile [BR, BC]
+    auto* dx_acc = s_mem + BR * BC;                                  // Q-row dX acc [BR, D]
+    auto* dx_tmp = dx_acc + BR * D;                                  // dX_v / dX_k / dV scratch [max(BR,BC), D]
+    auto* dq_acc = dx_tmp + XT_ROWS * D;                             // dq_code acc [BR, CUBE_M]
+    auto* dk_code = dq_acc + BR * CUBE_M;                            // dk_code (S_raw path) [BC, CUBE_M]
+    auto* z_stage = dk_code + BC * CUBE_M;                           // project_phi_bwd scratch [max(BR,BC), CUBE_M]
+    auto* dwphi_stage = z_stage + XT_ROWS * CUBE_M;                  // dW_phi / dW_V tile scratch [D, DW_COLS]
+    auto* state_mem = dwphi_stage + D * DW_COLS;
 
-    float* lse_mem = state_mem;            // [BR]
-    float* delta_mem = state_mem + BR;     // [BR]
-    float* qbias_mem = state_mem + 2 * BR; // [BR]
-    float* cbias_mem = state_mem + 3 * BR; // [BC]
+    float* lse_mem = state_mem;                  // [BR]
+    float* delta_mem = state_mem + BR;           // [BR]
+    float* qbias_mem = state_mem + 2 * BR;       // [BR]
+    float* dqbias_mem = state_mem + 3 * BR;      // [BR]
+    float* cbias_mem = state_mem + 4 * BR;       // [BC]
+    float* dcbias_mem = state_mem + 4 * BR + BC; // [BC]
 
     for (unsigned int i = tid; i < BR * D; i += blockDim.x) {
         dx_acc[i] = 0.0f;
+    }
+    for (unsigned int i = tid; i < BR * CUBE_M; i += blockDim.x) {
+        dq_acc[i] = 0.0f;
+    }
+    for (unsigned int i = tid; i < BR; i += blockDim.x) {
+        dqbias_mem[i] = 0.0f;
     }
 
     // move X to SRAM
@@ -348,6 +368,43 @@ __global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad
             }
         }
         __syncthreads();
+
+        // dV = P.T @ dO -> dx_tmp -> dv_h
+        arch::impl::matmul<BC, HEAD_DIM_V, WARPS, false, true>(dx_tmp, p_h_mem, do_mem, BR, BC, HEAD_DIM_V, HEAD_DIM_V,
+                                                               1.0f);
+        __syncthreads();
+        for (unsigned int i = tid; i < BC * HEAD_DIM_V; i += blockDim.x) {
+            dv_h[i] = __float2half(dx_tmp[i]);
+        }
+        __syncthreads();
+
+        // dW_V += X.T @ dV   [D, HEAD_DIM_V]
+        arch::impl::matmul_dyn<WARPS, false, true>(dwphi_stage, xt_mem, dv_h, D, HEAD_DIM_V, BC, D, HEAD_DIM_V,
+                                                   HEAD_DIM_V, 1.0f);
+        __syncthreads();
+
+        for (unsigned int i = tid; i < static_cast<unsigned int>(D) * HEAD_DIM_V; i += blockDim.x) {
+            const unsigned int d = i / HEAD_DIM_V;
+            const unsigned int n = i % HEAD_DIM_V;
+            atomicAdd(&dW_V_h[d * ldv + n], __float2half(dwphi_stage[i]));
+        }
+
+        // dX_v = dV @ W_V.T   [BC, D]
+        arch::impl::matmul_dyn<WARPS, true, false>(dx_tmp, dv_h, W_V_h, BC, D, HEAD_DIM_V, HEAD_DIM_V, ldv, D, 1.0f);
+        __syncthreads();
+
+        for (unsigned int i = tid; i < BC * static_cast<unsigned int>(D); i += blockDim.x) {
+            const int r = static_cast<int>(i) / D;
+            const int kv_row = kv_block_start + r;
+            if (r < kv_valid && kv_row < N) {
+                atomicAdd(&dX_s[kv_row * D + (static_cast<int>(i) % D)], __float2half(dx_tmp[i]));
+            }
+        }
+        __syncthreads();
+
+        // dP = dO @ V.T -> s_mem
+        arch::impl::matmul<BR, BC, WARPS, true>(s_mem, do_mem, v_mem, HEAD_DIM_V, HEAD_DIM_V, HEAD_DIM_V, BC, 1.0f);
+        __syncthreads();
     }
 
     // store to GMEM
@@ -414,21 +471,30 @@ void attention_backward_kernel_launcher(const __half* grad_out, const __half* X,
     TORCH_CHECK(D % H == 0, "D must be divisible by H");
     TORCH_CHECK(H * head_dim_v == D, "H * head_dim_v must equal D");
     TORCH_CHECK(cube_m == CUBE_M_FWD && head_dim_v == HEAD_DIM_V_FWD, "kernel built for fixed (cube_m, head_dim_v)");
+    TORCH_CHECK(D % 16 == 0, "D must be a multiple of 16 (WMMA tile) for the backward GEMMs");
     TORCH_CHECK(grad_out && X && W_phi && gate_q && gate_k && W_V && out && lse, "Null input pointer");
     TORCH_CHECK(dX && dW_phi && d_gate_q && d_gate_k && dW_V, "Null grad pointer");
 
     // smem carve
     constexpr int XT_ROWS_BWD = (BR_BWD > BC_BWD) ? BR_BWD : BC_BWD;
-    const size_t smem = sizeof(__half) * (BR_BWD * CUBE_M_FWD +     // q codes
-                                          BC_BWD * CUBE_M_FWD +     // k codes
-                                          BC_BWD * HEAD_DIM_V_FWD + // V tile
-                                          BR_BWD * HEAD_DIM_V_FWD + // dO tile
-                                          BR_BWD * BC_BWD)          // P tile
-                        + sizeof(__half) * (XT_ROWS_BWD * D)        // shared raw-token staging tile
-                        + sizeof(float) * (BR_BWD * BC_BWD +        // S/P tile
-                                           BR_BWD * D +             // dX accumulator
-                                           3 * BR_BWD +             // lse + delta + qbias
-                                           BC_BWD);                 // column bias
+    constexpr int DW_COLS_BWD = (CUBE_M_FWD > HEAD_DIM_V_FWD) ? CUBE_M_FWD : HEAD_DIM_V_FWD;
+    const size_t smem = sizeof(__half) * (BR_BWD * CUBE_M_FWD +       // q codes
+                                          BC_BWD * CUBE_M_FWD +       // k codes
+                                          BC_BWD * HEAD_DIM_V_FWD +   // V tile
+                                          BR_BWD * HEAD_DIM_V_FWD +   // dO tile
+                                          BR_BWD * BC_BWD +           // P / dS_raw tile
+                                          BC_BWD * HEAD_DIM_V_FWD +   // dV tile
+                                          XT_ROWS_BWD * CUBE_M_FWD)   // dZ tile
+                        + sizeof(__half) * (XT_ROWS_BWD * D)          // shared raw-token staging tile
+                        + sizeof(float) * (BR_BWD * BC_BWD +          // S/dP/dS tile
+                                           BR_BWD * D +               // dX_q accumulator
+                                           XT_ROWS_BWD * D +          // dX_v / dX_k / dV scratch
+                                           BR_BWD * CUBE_M_FWD +      // dq_code accumulator
+                                           BC_BWD * CUBE_M_FWD +      // dk_code
+                                           XT_ROWS_BWD * CUBE_M_FWD + // project_phi_bwd Z scratch
+                                           D * DW_COLS_BWD +          // dW_phi / dW_V tile scratch
+                                           4 * BR_BWD +               // lse + delta + qbias + d_qbias
+                                           2 * BC_BWD);               // cbias + d_cbias
 
     // kernel instance
     const auto kernel = morpho_attention_backward_kernel<HEAD_DIM_V_FWD, CUBE_M_FWD, BR_BWD, BC_BWD>;
