@@ -103,7 +103,6 @@ target_link_libraries(_C PRIVATE
 )
 
 if(NOT WIN32)
-    target_link_options(_C PRIVATE "-Wl,--no-as-needed")
     set_target_properties(_C PROPERTIES
             BUILD_RPATH   "${TORCH_LIB_DIR}"
             INSTALL_RPATH "$ORIGIN/../torch/lib"
