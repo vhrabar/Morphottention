@@ -34,7 +34,7 @@ class MorphoAttentionFunction(torch.autograd.Function):
         x = x.contiguous()
         out, lse = _C.forward(x, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal)
 
-        ctx.save_for_backward(x, W_phi, gate_q, gate_k, W_V, lse)
+        ctx.save_for_backward(x, W_phi, gate_q, gate_k, W_V, out, lse)
         ctx.H = H  # type: ignore[attr-defined]
         ctx.cube_m = cube_m  # type: ignore[attr-defined]
         ctx.scale = scale  # type: ignore[attr-defined]
@@ -46,7 +46,25 @@ class MorphoAttentionFunction(torch.autograd.Function):
         ctx: torch.autograd.function.FunctionCtx,
         grad_out: torch.Tensor,
     ) -> tuple[torch.Tensor | None, ...]:
-        raise NotImplementedError("MorphoAttention BWD has not been implemented yet.")
+        x, W_phi, gate_q, gate_k, W_V, out, lse = ctx.saved_tensors  # type: ignore[attr-defined]
+
+        grad_out = grad_out.contiguous()
+        dX, dW_phi, d_gate_q, d_gate_k, dW_V = _C.backward(
+            grad_out,
+            x,
+            W_phi,
+            gate_q,
+            gate_k,
+            W_V,
+            out,
+            lse,
+            ctx.H,  # type: ignore[attr-defined]
+            ctx.cube_m,  # type: ignore[attr-defined]
+            ctx.scale,  # type: ignore[attr-defined]
+            ctx.causal,  # type: ignore[attr-defined]
+        )
+
+        return dX, dW_phi, d_gate_q, d_gate_k, dW_V, None, None, None, None
 
 
 class MorphoAttention(nn.Module):

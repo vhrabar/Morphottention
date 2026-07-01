@@ -1,5 +1,7 @@
 name: CUDA Compile Check
 
+permissions:
+  contents: read
 
 on:
   push:
@@ -27,10 +29,10 @@ on:
 
 jobs:
   cuda-build:
-    runs-on: ubuntu-13.36.04
+    runs-on: ubuntu-26.04
     env:
-      CUDA_HOME: /usr/local/cuda-13.13.3
-      CUDAToolkit_ROOT: /usr/local/cuda-13.13.3
+      CUDA_HOME: /usr/local/cuda-13.3
+      CUDAToolkit_ROOT: /usr/local/cuda-13.3
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,20 +50,20 @@ jobs:
         id: cache-cuda
         uses: actions/cache@v4
         with:
-          path: /usr/local/cuda-13.13.3
-          key: cuda-13.13.3-${{ runner.os }}-v1
+          path: /usr/local/cuda-13.3
+          key: cuda-13.3-${{ runner.os }}-v1
 
       # Install CUDA compiler
       - name: Install CUDA compiler
         if: steps.cache-cuda.outputs.cache-hit != 'true'
         run: |
-          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu13.3604/x86_64/cuda-keyring_1.1-1_all.deb
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update -q
-          sudo apt-get install -y cuda-compiler-13-13.3 cuda-libraries-dev-13-13.3
+          sudo apt-get install -y cuda-compiler-13-3 cuda-libraries-dev-13-3
 
       - name: Add CUDA to PATH
-        run: echo "/usr/local/cuda-13.13.3/bin" >> "$GITHUB_PATH"
+        run: echo "/usr/local/cuda-13.3/bin" >> "$GITHUB_PATH"
 
       - name: Verify nvcc
         run: nvcc --version
@@ -82,4 +84,4 @@ jobs:
       - name: Compile CUDA extension
         run: uv build --package morphottention --wheel --no-build-isolation
         env:
-          MAX_JOBS: "13.3"
+          MAX_JOBS: "2"
