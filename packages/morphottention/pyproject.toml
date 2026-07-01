@@ -1,17 +1,17 @@
 [project]
 name = "morphottention"
-version = "0.1.0"
-description = "CUDA attention & morphology kernels for PyTorch (sm_90/100/120)"
+version = "0.2.0"
+description = "Mathematical Morphology-based self-attention module for PyTorch (CUDA) using Flash-style kernel fusion."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
     { name = "Vedran Hrabar", email = "vedran.hrabar@outlook.com" },
 ]
 license = { text = "MIT" }
-keywords = ["attention", "cuda", "pytorch", "transformer", "morfologfy", "flash-attention", "ViT"]
+keywords = ["attention", "cuda", "pytorch", "transformer", "morphology", "flash-attention", "ViT"]
 
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
 
     "Environment :: GPU",
     "Environment :: GPU :: NVIDIA CUDA",
