@@ -405,6 +405,68 @@ __global__ void morpho_attention_backward_kernel(const __half* __restrict__ grad
         // dP = dO @ V.T -> s_mem
         arch::impl::matmul<BR, BC, WARPS, true>(s_mem, do_mem, v_mem, HEAD_DIM_V, HEAD_DIM_V, HEAD_DIM_V, BC, 1.0f);
         __syncthreads();
+
+        // dS = P x (dP − delta_i) -> s_mem
+        // d_qbias_i += −scale x Sigma_j dS
+        for (unsigned int row = 0; row < BR / WARPS; row++) {
+            const unsigned int row_cor = row + warp * (BR / WARPS);
+            const float delta_i = delta_mem[row_cor];
+            float row_sum = 0.0f;
+
+            for (unsigned int c = lane; c < BC; c += 32) {
+                const float p = __half2float(p_h_mem[row_cor * BC + c]);
+                const float ds = p * (s_mem[row_cor * BC + c] - delta_i);
+                s_mem[row_cor * BC + c] = ds;
+                row_sum += ds;
+            }
+
+            row_sum = warpAllReduceSum(row_sum);
+            if (lane == 0) {
+                dqbias_mem[row_cor] += -scale * row_sum;
+            }
+        }
+        __syncthreads();
+
+        // d_cbias_j = −scale x Sigma_i dS
+        for (unsigned int c = tid; c < BC; c += blockDim.x) {
+            float col = 0.0f;
+            for (unsigned int r = 0; r < BR; r++) {
+                col += s_mem[r * BC + c];
+            }
+            dcbias_mem[c] = -scale * col;
+        }
+        __syncthreads();
+
+        // dS_raw = 2 x scale x dS -> p_h_mem
+        for (unsigned int i = tid; i < BR * BC; i += blockDim.x) {
+            p_h_mem[i] = __float2half(2.0f * scale * s_mem[i]);
+        }
+        __syncthreads();
+
+        // dq_code += dS_raw @ K   [BR, CUBE_M]
+        arch::impl::matmul<BR, CUBE_M, WARPS, false>(s_mem, p_h_mem, k_mem, BC, BC, CUBE_M, CUBE_M, 1.0f);
+        __syncthreads();
+        for (unsigned int i = tid; i < BR * CUBE_M; i += blockDim.x) {
+            dq_acc[i] += s_mem[i];
+        }
+
+        // dk_code = dS_raw.T @ Q   [BC, CUBE_M]
+        arch::impl::matmul<BC, CUBE_M, WARPS, false, true>(dk_code, p_h_mem, q_mem, BR, BC, CUBE_M, CUBE_M, 1.0f);
+        __syncthreads();
+
+        // K BWD proj
+        arch::impl::project_phi_bwd<BC, CUBE_M, WARPS>(xt_mem, W_phi_h, gate_k_h, gate_q_h, dk_code, dcbias_mem, dx_tmp,
+                                                       dW_phi_h, d_gate_k_h, d_gate_q_h, z_stage, dz_h, dwphi_stage, D,
+                                                       ldphi, warp, lane);
+
+        for (unsigned int i = tid; i < BC * static_cast<unsigned int>(D); i += blockDim.x) {
+            const int r = static_cast<int>(i) / D;
+            const int kv_row = kv_block_start + r;
+            if (r < kv_valid && kv_row < N) {
+                atomicAdd(&dX_s[kv_row * D + (static_cast<int>(i) % D)], __float2half(dx_tmp[i]));
+            }
+        }
+        __syncthreads();
     }
 
     // store to GMEM
