@@ -8,7 +8,7 @@ version = 0
 repo-id = "vhrabar/morphottention"
 
 [torch]
-include = ["csrc"]
+include = ["csrc", "torch-ext"]
 src = [
   "csrc/cuda/binder.cpp",
   "csrc/cuda/dispatch.cpp",
