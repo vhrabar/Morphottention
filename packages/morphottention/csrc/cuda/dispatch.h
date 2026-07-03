@@ -1,7 +1,7 @@
 #ifndef MORPHOTTENTION_DISPATCH_H
 #define MORPHOTTENTION_DISPATCH_H
 
-#include <torch/extension.h>
+#include <torch/torch.h>
 
 // py-facing dispatchers
 std::vector<torch::Tensor> forward(const torch::Tensor& X, const torch::Tensor& W_phi, const torch::Tensor& gate_q,
