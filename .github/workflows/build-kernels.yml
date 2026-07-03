@@ -1,0 +1,50 @@
+# based on: https://huggingface.co/docs/kernels/builder/github-actions
+
+name: Build Kernel
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    # Paths are relative to the repo root; the kernel lives in a subdirectory.
+    paths:
+      - "packages/morphottention/csrc/**"
+      - "packages/morphottention/torch-ext/**"
+      - "packages/morphottention/build.toml"
+      - "packages/morphottention/flake.nix"
+      - "packages/morphottention/flake.lock"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: hf
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build kernel via HF Jobs
+        uses: huggingface/kernel-builder-job@main
+        with:
+          token: ${{ secrets.HF_TOKEN }}
+          namespace: "vhrabar"
+          flavor: cpu-xl
+          timeout: "21600"
+          script: |
+            # The container starts with `set -x`; disable tracing so the
+            # token below is not echoed into the streamed logs.
+            set +x
+            export HF_TOKEN="${{ secrets.HF_TOKEN }}"
+            # Rebuild artifacts, so skip pulling existing LFS blobs.
+            export GIT_LFS_SKIP_SMUDGE=1
+
+            git clone "${{ github.server_url }}/${{ github.repository }}" kernel
+            cd kernel
+            git checkout "${{ github.sha }}"
+            # build.toml / flake.nix live in the package subdirectory.
+            cd packages/morphottention
+
+            # Upload destination (repo-id + version) is taken from build.toml.
+            nix run github:huggingface/kernels#kernel-builder -- build-and-upload \
+              --max-jobs 4 \
+              --cores 8

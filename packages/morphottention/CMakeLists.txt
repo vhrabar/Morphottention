@@ -41,21 +41,14 @@ list(APPEND CMAKE_PREFIX_PATH "${TORCH_CMAKE_PREFIX}")
 find_package(Torch REQUIRED CONFIG)
 
 
-if(WIN32)
-    set(_TORCH_PYTHON_LIB_NAME "torch_python.lib")
-else()
-    set(_TORCH_PYTHON_LIB_NAME "libtorch_python.so")
-endif()
-
 execute_process(
-        COMMAND ${Python_EXECUTABLE} -c "import pathlib, torch; print(pathlib.Path(torch.__file__).resolve().parent / 'lib' / '${_TORCH_PYTHON_LIB_NAME}')"
-        OUTPUT_VARIABLE TORCH_PYTHON_LIBRARY
+        COMMAND ${Python_EXECUTABLE} -c "import pathlib, torch; print(pathlib.Path(torch.__file__).resolve().parent / 'lib')"
+        OUTPUT_VARIABLE TORCH_LIB_DIR
         OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-if(NOT EXISTS "${TORCH_PYTHON_LIBRARY}")
-    message(FATAL_ERROR "Could not locate ${_TORCH_PYTHON_LIB_NAME} at: ${TORCH_PYTHON_LIBRARY}")
+if(NOT EXISTS "${TORCH_LIB_DIR}")
+    message(FATAL_ERROR "Could not locate torch lib dir at: ${TORCH_LIB_DIR}")
 endif()
-get_filename_component(TORCH_LIB_DIR "${TORCH_PYTHON_LIBRARY}" DIRECTORY)
 
 find_package(CUDAToolkit REQUIRED)
 
@@ -85,25 +78,19 @@ endif()
 
 target_include_directories(_C PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/csrc
+        ${CMAKE_CURRENT_SOURCE_DIR}/csrc/compat
         ${TORCH_INCLUDE_DIRS}
         ${Python_INCLUDE_DIRS}
         ${CUDAToolkit_INCLUDE_DIRS}
 )
 
-target_compile_definitions(_C PRIVATE
-        TORCH_EXTENSION_NAME=_C
-)
-
 target_link_libraries(_C PRIVATE
         ${TORCH_LIBRARIES}
-        ${TORCH_PYTHON_LIBRARY}
-        Python::Module
         CUDA::cudart
         CUDA::cublas
 )
 
 if(NOT WIN32)
-    target_link_options(_C PRIVATE "-Wl,--no-as-needed")
     set_target_properties(_C PROPERTIES
             BUILD_RPATH   "${TORCH_LIB_DIR}"
             INSTALL_RPATH "$ORIGIN/../torch/lib"

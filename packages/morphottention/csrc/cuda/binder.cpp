@@ -1,14 +1,17 @@
 #include "dispatch.h"
+#include "registration.h"
 
-#include <torch/extension.h>
+#include <torch/library.h>
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.doc() = "Morphottention CUDA attention kernels";
+TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, m) {
+    m.def("forward(Tensor X, Tensor W_phi, Tensor gate_q, Tensor gate_k, Tensor W_V, "
+          "int H, int cube_m, float scale, bool causal) -> Tensor[]");
 
-    m.def("forward", &forward, "Attention forward dispatcher", py::arg("X"), py::arg("W_phi"), py::arg("gate_q"),
-          py::arg("gate_k"), py::arg("W_V"), py::arg("H"), py::arg("cube_m"), py::arg("scale"), py::arg("causal"));
+    m.def("backward(Tensor grad_out, Tensor X, Tensor W_phi, Tensor gate_q, Tensor gate_k, "
+          "Tensor W_V, Tensor out, Tensor lse, int H, int cube_m, float scale, bool causal) -> Tensor[]");
 
-    m.def("backward", &backward, "Attention backward dispatcher", py::arg("grad_out"), py::arg("X"), py::arg("W_phi"),
-          py::arg("gate_q"), py::arg("gate_k"), py::arg("W_V"), py::arg("out"), py::arg("lse"), py::arg("H"),
-          py::arg("cube_m"), py::arg("scale"), py::arg("causal"));
+    m.impl("forward", torch::kCUDA, &forward);
+    m.impl("backward", torch::kCUDA, &backward);
 }
+
+REGISTER_EXTENSION(TORCH_EXTENSION_NAME)

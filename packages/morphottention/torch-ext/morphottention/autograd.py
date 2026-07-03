@@ -7,7 +7,28 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from . import _C
+try:
+    from ._ops import add_op_namespace_prefix, ops  # type: ignore[import-not-found]
+except ImportError:
+    from ._cmake_ops import add_op_namespace_prefix, ops
+
+
+@torch.library.register_fake(add_op_namespace_prefix("forward"))  # type: ignore[untyped-decorator]
+def _morpho_forward_fake(
+    X: torch.Tensor,
+    W_phi: torch.Tensor,
+    gate_q: torch.Tensor,
+    gate_k: torch.Tensor,
+    W_V: torch.Tensor,
+    H: int,
+    cube_m: int,
+    scale: float,
+    causal: bool,
+) -> list[torch.Tensor]:
+    B, N, _D = X.shape
+    out = torch.empty_like(X)
+    lse = X.new_empty((B * H, N), dtype=torch.float32)
+    return [out, lse]
 
 
 class MorphoAttentionFunction(torch.autograd.Function):
@@ -32,14 +53,14 @@ class MorphoAttentionFunction(torch.autograd.Function):
             raise ValueError("MorphoAttention expects a CUDA tensor")
 
         x = x.contiguous()
-        out, lse = _C.forward(x, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal)
+        out, lse = ops.forward(x, W_phi, gate_q, gate_k, W_V, H, cube_m, scale, causal)
 
         ctx.save_for_backward(x, W_phi, gate_q, gate_k, W_V, out, lse)
         ctx.H = H  # type: ignore[attr-defined]
         ctx.cube_m = cube_m  # type: ignore[attr-defined]
         ctx.scale = scale  # type: ignore[attr-defined]
         ctx.causal = causal  # type: ignore[attr-defined]
-        return out
+        return out  # type: ignore[no-any-return]
 
     @staticmethod
     def backward(
@@ -49,7 +70,7 @@ class MorphoAttentionFunction(torch.autograd.Function):
         x, W_phi, gate_q, gate_k, W_V, out, lse = ctx.saved_tensors  # type: ignore[attr-defined]
 
         grad_out = grad_out.contiguous()
-        dX, dW_phi, d_gate_q, d_gate_k, dW_V = _C.backward(
+        dX, dW_phi, d_gate_q, d_gate_k, dW_V = ops.backward(
             grad_out,
             x,
             W_phi,
