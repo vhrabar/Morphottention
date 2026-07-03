@@ -1,9 +1,13 @@
 [general]
 name = "morphottention"
 backends = ["cuda"]
+license = "MIT"
+version = 0
+
+[general.hub]
+repo-id = "vhrabar/morphottention"
 
 [torch]
-minver = "2.12"
 include = ["csrc"]
 src = [
   "csrc/cuda/binder.cpp",
