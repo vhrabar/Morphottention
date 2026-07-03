@@ -1,6 +1,6 @@
 [project]
 name = "morphottention"
-version = "0.2.0"
+version = "0.2.1"
 description = "Mathematical Morphology-based self-attention module for PyTorch (CUDA) using Flash-style kernel fusion."
 readme = "README.md"
 requires-python = ">=3.12"
