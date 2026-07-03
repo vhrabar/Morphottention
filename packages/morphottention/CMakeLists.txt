@@ -78,6 +78,7 @@ endif()
 
 target_include_directories(_C PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/csrc
+        ${CMAKE_CURRENT_SOURCE_DIR}/csrc/compat
         ${TORCH_INCLUDE_DIRS}
         ${Python_INCLUDE_DIRS}
         ${CUDAToolkit_INCLUDE_DIRS}
