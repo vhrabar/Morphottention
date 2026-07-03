@@ -1,0 +1,33 @@
+[general]
+name = "morphottention"
+backends = ["cuda"]
+
+[torch]
+minver = "2.12"
+include = ["csrc"]
+src = [
+  "csrc/cuda/binder.cpp",
+  "csrc/cuda/dispatch.cpp",
+  "csrc/cuda/dispatch.h",
+]
+
+[kernel.morpho]
+backend = "cuda"
+cuda-capabilities = ["8.9", "9.0", "10.0", "12.0", "12.0a"]
+depends = ["torch"]
+include = ["csrc"]
+src = [
+  "csrc/cuda/attention/attention.cpp",
+  "csrc/cuda/attention/attention.cu",
+  "csrc/cuda/attention/attention.cuh",
+  "csrc/cuda/dispatch.h",
+  "csrc/cuda/morfology/cube.cuh",
+  "csrc/cuda/morfology/soft_morph.cuh",
+  "csrc/cuda/sm120/matmul.cuh",
+  "csrc/cuda/sm120/project.cuh",
+  "csrc/cuda/sm120/smem.cuh",
+  "csrc/cuda/utils/declarations.cuh",
+  "csrc/cuda/utils/reductions.cuh",
+  "csrc/cuda/utils/smem.cuh",
+  "csrc/cuda/utils/utils.cuh",
+]

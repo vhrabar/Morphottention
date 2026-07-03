@@ -1,0 +1,14 @@
+#ifndef MORPHOTTENTION_COMPAT_REGISTRATION_H
+#define MORPHOTTENTION_COMPAT_REGISTRATION_H
+
+// Compatibility shim for the local CMake / PyPI build.
+
+#include <torch/library.h>
+
+#define TORCH_LIBRARY_EXPAND(NAME, MODULE) TORCH_LIBRARY(NAME, MODULE)
+
+#define TORCH_EXTENSION_NAME morphottention
+
+#define REGISTER_EXTENSION(NAME)
+
+#endif // MORPHOTTENTION_COMPAT_REGISTRATION_H
